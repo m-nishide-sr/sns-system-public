@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: SNSシステム API
+  version: 0.1.0
+paths:
+  /messages:
+    post:
+      summary: メッセージを作成する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /messages/{cognito_id}:
+    get:
+      summary: 利用者のメッセージ一覧を取得する
+      parameters:
+        - in: path
+          name: cognito_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+components:
+  schemas:
+    CreateMessageRequest:
+      type: object
+      required:
+        - cognito_id
+        - body
+        - is_from_user
+      properties:
+        cognito_id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        is_from_user:
+          type: boolean
+    Message:
+      type: object
+      required:
+        - message_id
+        - cognito_id
+        - created_at
+        - body
+        - is_from_user
+      properties:
+        message_id:
+          type: string
+          format: uuid
+        cognito_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        body:
+          type: string
+        is_from_user:
+          type: boolean

@@ -1,0 +1,80 @@
+name: sns-system-api-cicd
+
+on:
+  pull_request:
+    paths:
+      - "api/**"
+      - "db/**"
+      - ".github/workflows/sns-system-api-cicd.yaml"
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - "api/**"
+      - "db/**"
+      - ".github/workflows/sns-system-api-cicd.yaml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Rustセットアップ
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: AWS SAMセットアップ
+        uses: aws-actions/setup-sam@v2
+
+      - name: SAMテンプレート検証
+        run: sam validate --lint --template-file api/template.yaml
+
+      - name: コンパイルチェック
+        working-directory: api/lambda
+        run: cargo check
+
+      - name: 静的解析
+        working-directory: api/lambda
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: テスト
+        working-directory: api/lambda
+        run: cargo test --all-features -- --include-ignored
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      STAGE: ${{ github.ref == 'refs/heads/release' && 'release' || 'develop' }}
+      AWS_REGION: ap-northeast-3
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: AWS認証
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: AWS SAMセットアップ
+        uses: aws-actions/setup-sam@v2
+
+      - name: SAMビルド
+        run: sam build --template-file api/template.yaml
+
+      - name: SAMデプロイ
+        run: |
+          sam deploy \
+            --stack-name "sns-api-${STAGE}" \
+            --template-file .aws-sam/build/template.yaml \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides "Stage=${STAGE}" \
+            --role-arn "${{ secrets.SAM_DEPLOY_ROLE_ARN }}"

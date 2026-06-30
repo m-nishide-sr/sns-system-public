@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム APIサブシステム
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Default: develop
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub sns-api-${Stage}-lambda
+      Runtime: provided.al2023
+      Handler: bootstrap
+      CodeUri: lambda/
+      Architectures:
+        - arm64
+      MemorySize: 256
+      Timeout: 30
+      Events:
+        ApiProxyRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApiGateway
+            Path: /
+            Method: ANY
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApiGateway
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API GatewayのURL
+    Value: !GetAtt ApiGateway.ApiEndpoint
+    Export:
+      Name: !Sub sns-api-${Stage}-apigatewayurl
