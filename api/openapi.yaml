@@ -1,0 +1,89 @@
+openapi: 3.1.0
+info:
+  title: SNSシステム チャットAPI
+  description: SNSシステムのチャット機能を提供するAPIです。
+  contact:
+    name: SNSシステム開発チーム
+  license:
+    name: MIT
+  version: 1.0.0
+paths:
+  /chat:
+    get:
+      tags: []
+      summary: チャット取得API。
+      description: 認証済みユーザーのチャットメッセージ一覧を取得する。
+      operationId: get_chat
+      responses:
+        '200':
+          description: チャットメッセージ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+        '401':
+          description: 認証が必要です
+        '500':
+          description: 内部サーバーエラー
+      security:
+      - bearer_auth: []
+    post:
+      tags: []
+      summary: チャット投稿API。
+      description: 認証済みユーザーのチャットメッセージを投稿する。
+      operationId: post_chat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostChatRequest'
+        required: true
+      responses:
+        '201':
+          description: 投稿成功
+        '400':
+          description: リクエストが不正です
+        '401':
+          description: 認証が必要です
+        '500':
+          description: 内部サーバーエラー
+      security:
+      - bearer_auth: []
+components:
+  schemas:
+    ChatMessage:
+      type: object
+      description: チャット取得APIのレスポンスボディ（メッセージ1件）。
+      required:
+      - is_from_user
+      - body
+      - created_at
+      properties:
+        body:
+          type: string
+          description: メッセージ本文
+        created_at:
+          type: string
+          description: 作成日時（ISO 8601形式）
+        is_from_user:
+          type: boolean
+          description: 'ユーザーからのメッセージかどうか（true: ユーザー, false: システム）'
+    PostChatRequest:
+      type: object
+      description: チャット投稿APIのリクエストボディ。
+      required:
+      - body
+      properties:
+        body:
+          type: string
+          description: 投稿するメッセージ本文
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Amazon CognitoのJWTトークンをBearerトークンとして指定してください。
+security:
+- bearer_auth: []

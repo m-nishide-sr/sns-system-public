@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+# ==============================================================================
+# SNSシステム APIサブシステム - AWS SAMテンプレート
+#
+# スタック名: sns-api-${Stage}
+# ==============================================================================
+
+Description: SNSシステム チャットAPI
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイ環境のステージ名
+
+  DsqlEndpoint:
+    Type: String
+    Description: Aurora DSQLのエンドポイント（sns-dbスタックから取得）
+
+Globals:
+  Function:
+    # Lambdaの実行ロールはDBスタックで作成されたロールを使用する
+    # （Aurora DSQLへのdsql:DbConnect権限を保有）
+    Role: !Sub arn:aws:iam::${AWS::AccountId}:role/sns-db-${Stage}-lambda-role
+    CodeUri: lambda/
+    Handler: bootstrap
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        DSQL_ENDPOINT: !Ref DsqlEndpoint
+        AWS_REGION: !Ref AWS::Region
+
+Resources:
+  # =============================================================================
+  # HTTP API (API Gateway v2)
+  # =============================================================================
+  ChatHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      # JWT オーソライザー: API GatewayレベルでCognito JWTを検証する
+      # Lambda側でのJWT検証コストを省き、未認証リクエストを早期に拒否するため
+      Auth:
+        DefaultAuthorizer: CognitoJwtAuthorizer
+        Authorizers:
+          CognitoJwtAuthorizer:
+            JwtConfiguration:
+              issuer:
+                Fn::ImportValue: !Sub sns-auth-${Stage}-CognitoIssuer
+              audience:
+                - Fn::ImportValue: !Sub sns-auth-${Stage}-UserPoolClientId
+            IdentitySource: $request.header.Authorization
+
+  # =============================================================================
+  # Lambda関数
+  # =============================================================================
+  ChatApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      # Cargo Lambdaを使用してRustバイナリをビルドする
+      BuildMethod: rust-cargolambda
+      BuildProperties:
+        Binary: bootstrap
+    Properties:
+      Events:
+        GetChat:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ChatHttpApi
+            Path: /chat
+            Method: GET
+        PostChat:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ChatHttpApi
+            Path: /chat
+            Method: POST
+
+Outputs:
+  # フロントエンドのCloudFrontがAPIオリジンとして参照するURL
+  ApiGatewayUrl:
+    Description: API GatewayのURL
+    Value: !GetAtt ChatHttpApi.ApiUrl
+    Export:
+      Name: !Sub sns-api-${Stage}-apigatewayurl

@@ -1,0 +1,56 @@
+[package]
+name = "lambda"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
+
+[[bin]]
+name = "export_openapi"
+path = "src/bin/export_openapi.rs"
+
+[dependencies]
+# Lambda HTTP ランタイム
+lambda_http = { version = "1", features = ["apigw_http"] }
+
+# 非同期ランタイム
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+# データベース
+sea-orm = { version = "1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
+sea_orm_entities = { path = "../../db/sea_orm_entities" }
+
+# Aurora DSQL コネクター（sqlx v0.8 系と互換、v0.2.1 は sqlx v0.9 系で非互換のため =0.2.0 に固定）
+aurora-dsql-sqlx-connector = { version = "=0.2.0", features = ["pool"] }
+
+# シリアライズ
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# UUID（v7 生成のため）
+uuid = { version = "1", features = ["v7", "serde"] }
+
+# 日時
+chrono = { version = "0.4", features = ["serde"] }
+
+# OpenAPI ドキュメント生成
+utoipa = { version = "5", features = ["uuid", "chrono", "yaml"] }
+
+# ロギング
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# エラーハンドリング
+thiserror = "2"
+
+[dev-dependencies]
+proptest = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+panic = "abort"
+strip = true
