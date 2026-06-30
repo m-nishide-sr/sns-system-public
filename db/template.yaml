@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: sns-system DBサブシステム
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+
+Conditions:
+  IsRelease: !Equals [!Ref Stage, release]
+
+Resources:
+  DsqlCluster:
+    Type: AWS::DSQL::Cluster
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+
+  DbLambdaRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      RoleName: !Sub sns-db-${Stage}-lambda-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: dsql-db-connect
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnect
+                Resource: !Sub arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}
+
+  DsqlConsoleDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: dsql-console
+            DomainName: aws.amazon.com
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+        DefaultCacheBehavior:
+          TargetOriginId: dsql-console
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
+Outputs:
+  DsqlEndpoint:
+    Description: Aurora DSQL接続エンドポイント
+    Value: !GetAtt DsqlCluster.Identifier
+    Export:
+      Name: !Sub sns-db-${Stage}-DSQLEndpoint
+
+  LambdaRoleArn:
+    Description: DB接続用Lambda実行ロールARN
+    Value: !GetAtt DbLambdaRole.Arn
+    Export:
+      Name: !Sub sns-db-${Stage}-LambdaRoleArn
+
+  DomainName:
+    Description: CloudFrontドメイン名
+    Value: !GetAtt DsqlConsoleDistribution.DomainName
+    Export:
+      Name: !Sub sns-db-${Stage}-DomainName

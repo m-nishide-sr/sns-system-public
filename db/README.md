@@ -41,7 +41,35 @@
 
 ## DB定義
 
-TODO:記載する
+### テーブル
+
+#### `public.messages`
+
+チャットメッセージを保持するテーブル。
+
+| カラム名 | 型 | NULL | 説明 |
+|--|--|--|--|
+| id | uuid | NOT NULL | 主キー。アプリケーション側でuuidv7を採番する |
+| cognito_id | uuid | NOT NULL | 投稿ユーザーのCognitoサブジェクトID |
+| created_at | timestamptz | NOT NULL | メッセージ作成日時。デフォルトは`CURRENT_TIMESTAMP` |
+| body | text | NOT NULL | メッセージ本文 |
+| is_from_user | boolean | NOT NULL | `true`: ユーザー投稿, `false`: システム投稿 |
+
+主キー：
+
+- `pk_messages (id)`
+
+インデックス：
+
+- `idx_messages_user_timeline (cognito_id, created_at DESC) INCLUDE (body, is_from_user)`
+  - local: `CREATE INDEX`
+  - develop/release: `CREATE INDEX ASYNC`
+
+### ビュー
+
+#### `public.messages_latest`
+
+`public.messages`をそのまま参照する互換ビュー。
 
 ### DBのマイグレーション
 
