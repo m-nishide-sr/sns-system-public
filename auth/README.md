@@ -21,7 +21,7 @@
 
 ## 認証サブシステム インフラ構成
 
-- /frontend/template.yaml
+- /auth/template.yaml
   - Cognito
     - ユーザプール ： `Type: AWS::Cognito::UserPool`
       - パスワードは一般的な強度を設定

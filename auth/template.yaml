@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム認証基盤
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイ先ステージ
+  SubSystem:
+    Type: String
+    Default: auth
+    AllowedValues:
+      - auth
+    Description: サブシステム名
+
+Conditions:
+  IsRelease: !Equals [!Ref Stage, release]
+  IsDevelop: !Equals [!Ref Stage, develop]
+
+Resources:
+  UserPoolForRelease:
+    Type: AWS::Cognito::UserPool
+    Condition: IsRelease
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub sns-${SubSystem}-${Stage}-user-pool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      Policies:
+        PasswordPolicy:
+          # 長く複雑なパスワードを必須にして総当たり・辞書攻撃への耐性を上げる。
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+
+  UserPoolForDevelop:
+    Type: AWS::Cognito::UserPool
+    Condition: IsDevelop
+    DeletionPolicy: Delete
+    Properties:
+      UserPoolName: !Sub sns-${SubSystem}-${Stage}-user-pool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      Policies:
+        PasswordPolicy:
+          # 長く複雑なパスワードを必須にして総当たり・辞書攻撃への耐性を上げる。
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+
+  UserPoolClientForRelease:
+    Type: AWS::Cognito::UserPoolClient
+    Condition: IsRelease
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ClientName: !Sub sns-${SubSystem}-${Stage}-user-pool-client
+      UserPoolId: !Ref UserPoolForRelease
+      # SPA にシークレットを安全に保持できないため、パブリッククライアントとして運用する。
+      GenerateSecret: false
+      # 不正トークンの失効を可能にして漏えい時の影響を抑える。
+      EnableTokenRevocation: true
+      # ユーザー有無をエラーメッセージから推測されにくくして列挙攻撃を抑止する。
+      PreventUserExistenceErrors: ENABLED
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  UserPoolClientForDevelop:
+    Type: AWS::Cognito::UserPoolClient
+    Condition: IsDevelop
+    DeletionPolicy: Delete
+    Properties:
+      ClientName: !Sub sns-${SubSystem}-${Stage}-user-pool-client
+      UserPoolId: !Ref UserPoolForDevelop
+      # SPA にシークレットを安全に保持できないため、パブリッククライアントとして運用する。
+      GenerateSecret: false
+      # 不正トークンの失効を可能にして漏えい時の影響を抑える。
+      EnableTokenRevocation: true
+      # ユーザー有無をエラーメッセージから推測されにくくして列挙攻撃を抑止する。
+      PreventUserExistenceErrors: ENABLED
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+Outputs:
+  UserPoolId:
+    Description: CognitoのユーザプールID
+    Value: !If [IsRelease, !Ref UserPoolForRelease, !Ref UserPoolForDevelop]
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-UserPoolId
+  UserPoolClientId:
+    Description: CognitoのユーザプールクライアントID
+    Value: !If [IsRelease, !Ref UserPoolClientForRelease, !Ref UserPoolClientForDevelop]
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-UserPoolClientId
+  CognitoIssuer:
+    Description: CognitoのJWT Issuer URL
+    Value: !Sub
+      - https://cognito-idp.${AWS::Region}.amazonaws.com/${ResolvedUserPoolId}
+      - ResolvedUserPoolId: !If [IsRelease, !Ref UserPoolForRelease, !Ref UserPoolForDevelop]
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-CognitoIssuer
