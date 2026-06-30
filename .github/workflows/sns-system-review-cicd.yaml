@@ -1,0 +1,199 @@
+name: sns-system-review-cicd
+
+on:
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup cargo-tarpaulin
+        run: |
+          if [ -d api/lambda ]; then
+            cargo install cargo-tarpaulin --locked
+          fi
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Validate SAM template
+        run: sam validate --lint --template-file review/template.yaml
+
+      - name: Generate API coverage report
+        run: |
+          if [ -d api/lambda ]; then
+            cd api/lambda
+            cargo tarpaulin --out Html -- --include-ignored
+          else
+            mkdir -p api/lambda/tarpaulin-report
+            printf '%s\n' '<!doctype html><html><body><p>カバレッジ未生成</p></body></html>' > api/lambda/tarpaulin-report/index.html
+          fi
+
+      - name: Generate API rustdoc
+        run: |
+          if [ -d api/lambda ]; then
+            cd api/lambda
+            cargo doc --no-deps
+          else
+            mkdir -p api/lambda/target/doc
+            printf '%s\n' '<!doctype html><html><body><p>Rustドキュメント未生成</p></body></html>' > api/lambda/target/doc/index.html
+          fi
+
+      - name: Generate OpenAPI
+        run: |
+          if [ -d api/lambda ]; then
+            cd api/lambda
+            cargo run --features openapi --bin generate-openapi
+          else
+            mkdir -p api/lambda
+            printf '%s\n' 'openapi: 3.0.0' > api/lambda/openapi.yaml
+          fi
+
+      - name: Generate frontend JSDoc
+        run: |
+          cd frontend
+          if [ -f package.json ] && npm run | grep -q "jsdoc"; then
+            npm ci
+            npm run jsdoc
+          else
+            mkdir -p docs/jsdoc
+            printf '%s\n' '<!doctype html><html><body><p>JSDoc未生成</p></body></html>' > docs/jsdoc/index.html
+          fi
+
+      - name: Generate frontend Storybook
+        run: |
+          cd frontend
+          if [ -f package.json ] && npm run | grep -q "storybook"; then
+            npm ci
+            npm run build-storybook
+          else
+            mkdir -p storybook-static
+            printf '%s\n' '<!doctype html><html><body><p>Storybook未生成</p></body></html>' > storybook-static/index.html
+          fi
+
+      - name: Prepare review artifacts
+        run: |
+          COMMIT_SHORT="${GITHUB_SHA::12}"
+          OUTDIR="review/public/${COMMIT_SHORT}"
+          mkdir -p "${OUTDIR}"/{coverage,rustdoc,openapi,jsdoc,storybook}
+
+          cp -R api/lambda/tarpaulin-report/. "${OUTDIR}/coverage/" 2>/dev/null || true
+          cp -R api/lambda/target/doc/. "${OUTDIR}/rustdoc/" 2>/dev/null || true
+          cp api/lambda/openapi.yaml "${OUTDIR}/openapi/openapi.yaml" 2>/dev/null || true
+          cp -R frontend/docs/jsdoc/. "${OUTDIR}/jsdoc/" 2>/dev/null || true
+          cp -R frontend/storybook-static/. "${OUTDIR}/storybook/" 2>/dev/null || true
+
+          cat > "${OUTDIR}/index.html" <<'HTML'
+          <!doctype html>
+          <html lang="ja">
+          <head><meta charset="utf-8"><title>レビュー資料</title></head>
+          <body>
+            <h1>レビュー資料</h1>
+            <ul>
+              <li><a href="./coverage/index.html">カバレッジレポート</a></li>
+              <li><a href="./rustdoc/index.html">Rustドキュメント</a></li>
+              <li><a href="./openapi/openapi.yaml">OpenAPI</a></li>
+              <li><a href="./jsdoc/index.html">JSDoc</a></li>
+              <li><a href="./storybook/index.html">Storybook</a></li>
+            </ul>
+          </body>
+          </html>
+          HTML
+
+      - name: Upload review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-public
+          path: review/public
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    env:
+      AWS_REGION: ap-northeast-3
+      STAGE: ${{ github.base_ref == 'release' && 'release' || 'develop' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: SAM deploy
+        run: |
+          sam deploy \
+            --template-file review/template.yaml \
+            --stack-name sns-review-${STAGE} \
+            --parameter-overrides Stage=${STAGE} \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --role-arn "${{ secrets.SAM_DEPLOY_ROLE_ARN }}"
+
+      - name: Download review artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: review-public
+          path: review/public
+
+      - name: Upload to S3
+        run: |
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name sns-review-${STAGE} \
+            --query "Stacks[0].Outputs[?ExportName=='sns-review-${STAGE}-BucketName'].OutputValue" \
+            --output text)
+          aws s3 sync review/public "s3://${BUCKET_NAME}" --delete
+          DOMAIN_NAME=$(aws cloudformation describe-stacks \
+            --stack-name sns-review-${STAGE} \
+            --query "Stacks[0].Outputs[?ExportName=='sns-review-${STAGE}-DomainName'].OutputValue" \
+            --output text)
+          echo "REVIEW_DOMAIN=${DOMAIN_NAME}" >> "${GITHUB_ENV}"
+
+      - name: Notify deployment URL
+        uses: actions/github-script@v7
+        env:
+          STAGE: ${{ env.STAGE }}
+          REVIEW_DOMAIN: ${{ env.REVIEW_DOMAIN }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commitShort = context.sha.slice(0, 12);
+            const url = `https://${process.env.REVIEW_DOMAIN}/${commitShort}/index.html`;
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: `review-${process.env.STAGE}`,
+              required_contexts: [],
+              auto_merge: false,
+              transient_environment: true,
+              description: 'レビュー資料公開'
+            });
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: deployment.data.id,
+              state: 'success',
+              environment: `review-${process.env.STAGE}`,
+              environment_url: url,
+              log_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
