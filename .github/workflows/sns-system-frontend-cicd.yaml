@@ -1,0 +1,89 @@
+name: sns-system-frontend-cicd
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/sns-system-frontend-cicd.yaml"
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - "frontend/**"
+      - ".github/workflows/sns-system-frontend-cicd.yaml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      STAGE: ${{ github.ref_name }}
+      AWS_REGION: ap-northeast-1
+      NEXT_PUBLIC_ALLOW_DOMAIN: ${{ secrets.ALLOW_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/setup-sam@v2
+      - run: npm ci
+      - name: Cognito設定を取得する
+        run: |
+          USER_POOL_ID=$(aws cloudformation describe-stacks --stack-name sns-auth-${STAGE} --query "Stacks[0].Outputs[?ExportName=='sns-auth-${STAGE}-UserPoolId'].OutputValue" --output text)
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks --stack-name sns-auth-${STAGE} --query "Stacks[0].Outputs[?ExportName=='sns-auth-${STAGE}-UserPoolClientId'].OutputValue" --output text)
+          {
+            echo "NEXT_PUBLIC_AWS_REGION=${AWS_REGION}"
+            echo "NEXT_PUBLIC_COGNITO_USER_POOL_ID=${USER_POOL_ID}"
+            echo "NEXT_PUBLIC_COGNITO_USER_POOL_WEB_CLIENT_ID=${USER_POOL_CLIENT_ID}"
+            echo "NEXT_PUBLIC_ALLOW_DOMAIN=${NEXT_PUBLIC_ALLOW_DOMAIN}"
+          } >> "${GITHUB_ENV}"
+      - run: npm run build
+      - name: SAMをデプロイする
+        run: |
+          sam build --template-file template.yaml
+          sam deploy \
+            --stack-name sns-frontend-${STAGE} \
+            --parameter-overrides Stage=${STAGE} \
+            --role-arn "${{ secrets.SAM_DEPLOY_ROLE_ARN }}" \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_IAM
+      - name: 配信物をS3に同期する
+        run: |
+          BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name sns-frontend-${STAGE} --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" --output text)
+          DOMAIN_NAME=$(aws cloudformation describe-stacks --stack-name sns-frontend-${STAGE} --query "Stacks[0].Outputs[?OutputKey=='DomainName'].OutputValue" --output text)
+          aws s3 sync out/ "s3://${BUCKET_NAME}" --delete
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?DomainName=='${DOMAIN_NAME}'].Id | [0]" --output text)
+          aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths "/*"
