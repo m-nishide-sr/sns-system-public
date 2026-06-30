@@ -1,0 +1,8 @@
+[package]
+name = "sea_orm_entities"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# SeaORM with PostgreSQL support
+sea-orm = { version = "1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
