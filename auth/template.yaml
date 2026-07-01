@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム 認証基盤
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイステージ
+  SubSystem:
+    Type: String
+    Default: auth
+    AllowedValues:
+      - auth
+    Description: サブシステム分類名
+  AllowDomain:
+    Type: String
+    NoEcho: true
+    Description: ユーザー登録を許可するメールアドレスのドメイン部（GitHubシークレット ALLOW_DOMAIN から渡される）
+
+Conditions:
+  IsRelease: !Equals [!Ref Stage, release]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      UserPoolName: !Sub sns-${SubSystem}-${Stage}-user-pool
+      # メールアドレスをユーザー識別子として使用し、確認コードをメールで送信する
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          # 一般的なパスワード強度ポリシー（大文字・小文字・数字・記号を含む8文字以上）
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      LambdaConfig:
+        # サインアップ前に許可ドメインを検証するため、PreSignUpLambdaトリガーを設定する
+        PreSignUp: !GetAtt PreSignUpFunction.Arn
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      ClientName: !Sub sns-${SubSystem}-${Stage}-client
+      UserPoolId: !Ref UserPool
+      # ブラウザアプリ（パブリッククライアント）向けのため、クライアントシークレットは生成しない
+      # クライアントシークレットはサーバーサイドアプリ向けであり、ブラウザに埋め込むべきでない
+      GenerateSecret: false
+      # SRPによる認証のみを許可する
+      # ALLOW_USER_PASSWORD_AUTH は平文パスワードをネットワーク上に送信するため使用しない
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      # アクセストークンの有効期限（60分）
+      # 短い有効期限に設定することで、トークン漏洩時のリスクを低減する
+      AccessTokenValidity: 60
+      # IDトークンの有効期限（60分）
+      IdTokenValidity: 60
+      # リフレッシュトークンの有効期限（30日）
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      # ユーザーが存在するかどうかの情報を攻撃者に漏洩させないようにする
+      PreventUserExistenceErrors: ENABLED
+      # セキュリティインシデント発生時にトークンを即時無効化できるようにする
+      EnableTokenRevocation: true
+
+  PreSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Architectures:
+        - arm64
+      Timeout: 30
+      MemorySize: 128
+      Runtime: provided.al2023
+      Handler: bootstrap
+      CodeUri: ./PreSignUpFunction
+      Environment:
+        Variables:
+          # GitHubシークレット ALLOW_DOMAIN からデプロイ時に設定される許可ドメイン
+          ALLOWED_EMAIL_DOMAINS: !Ref AllowDomain
+    Metadata:
+      BuildMethod: rust-cargolambda
+
+  # CognitoユーザープールからPreSignUpLambdaを呼び出すための権限
+  PreSignUpFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PreSignUpFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+
+Outputs:
+  UserPoolId:
+    Description: CognitoユーザープールID
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-UserPoolId
+
+  UserPoolClientId:
+    Description: CognitoユーザープールクライアントID
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-UserPoolClientId
+
+  CognitoIssuer:
+    Description: CognitoのJWT Issuer URL
+    Value: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-CognitoIssuer
