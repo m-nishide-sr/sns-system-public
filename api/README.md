@@ -67,7 +67,7 @@
         ```bash
           docker run --rm -e LIQUIBASE_HUB_MODE=off --network host -v "${{ github.workspace }}:/workspace" liquibase/liquibase:4.33.0 --search-path=/workspace --changelog-file=db/liquibase/changelog.xml --contexts=local --url=jdbc:postgresql://localhost:5432/postgres --username=postgres --password=postgres update
         ```
-    - `cargo test -- --include-ignored`でテスト実行
+    - `cargo test --all-features -- --include-ignored`でテスト実行
   - deploy
     - AWSのクレデンシャルの設定
     - `sam build`でビルド

@@ -174,6 +174,7 @@ Statement DPU Estimate:
   - validate
     - `sam validate --lint`で`/api/template.yaml`を検証する。
     - `cargo check`でコンパイルチェック
+    - `cargo test`で軽量テスト実行
     - `cargo clippy`で静的解析
     - テスト実行用環境構築
       - PostgreSQL v16の立ち上げ
@@ -187,7 +188,7 @@ Statement DPU Estimate:
         ```bash
         docker run --rm -e LIQUIBASE_HUB_MODE=off --network host -v "${{ github.workspace }}:/workspace" liquibase/liquibase:4.33.0 --search-path=/workspace --changelog-file=db/liquibase/changelog.xml --contexts=local --url=jdbc:postgresql://localhost:5432/postgres --username=postgres --password=postgres update
         ```
-    - `cargo test -- --include-ignored`でテスト実行
+    - `cargo test --all-features -- --include-ignored`で全数テスト実行
   - migrate
     - AWSのクレデンシャルの設定
     - `sam deploy`でデプロイ

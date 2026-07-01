@@ -15,21 +15,89 @@
     - /auth/README.md ： 人間とAI向けにDBの詳細の説明を記述する。
     - /auth/AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
     - /auth/template.yaml ： 認証のIaC
+    - /auth/PreSignUpFunction ： PreSignUpFunctionを実装するルートディレクトリ
+      - /auth/PreSignUpFunction/Cargo.toml ： パッケージのマニフェストファイル
+      - /auth/PreSignUpFunction/src/main.rs ： PreSignUpFunctionの実装
   - /db ： DBのルート
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
 
 ## 認証サブシステム インフラ構成
 
-- /frontend/template.yaml
-  - Cognito
-    - ユーザプール ： `Type: AWS::Cognito::UserPool`
-      - パスワードは一般的な強度を設定
-      - `AutoVerifiedAttributes`および`UsernameAttributes`は`email`を指定
-      - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
-    - ユーザプールクライアント ： `Type: AWS::Cognito::UserPoolClient`
-      - セキュリティ設定は一般的なベストプラクティスに従い設定し、コメントには「なぜ」を記載する
-      - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
+- /.github/workflows/sns-system-auth-cicd.yaml ： CI/CD
+  - jobs
+    - validate
+      - steps
+        - `sam validate --lint`の実行
+        - `cargo check`でコンパイルチェック
+        - `cargo clippy`で静的解析
+        - `cargo test --all-features -- --include-ignored`でテスト実行
+    - deploy
+      - needs: validate
+      - if: 
+        - github.event_name == 'push'
+        - ブランチが`develop` or `release`
+      - steps
+        - AWSのクレデンシャルの設定
+          - uses: aws-actions/configure-aws-credentials@v4
+            - with:
+              - role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+              - aws-region: ap-northeast-3
+        - `sam build`の実行
+        - `sam deploy`の実行
+          - `--role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }}`
+          - `--parameter-overrides`
+            - Stage=developブランチでは`develop`、releaseブランチでは`release`
+- /auth/template.yaml
+  - Parameters
+    - Stage ： デプロイステージ
+      - Type: String
+      - AllowedValues:
+        - develop
+        - release
+    - SubSystem ： サブシステム分類名(ここでは`auth`のみ)
+      - Type: String
+      - Default: auth
+      - AllowedValues:
+        - auth
+  - Resources
+    - Cognito
+      - ユーザプール ： `Type: AWS::Cognito::UserPool`
+        - パスワードは一般的な強度を設定
+        - `AutoVerifiedAttributes`および`UsernameAttributes`は`email`を指定
+        - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
+      - ユーザプールクライアント ： `Type: AWS::Cognito::UserPoolClient`
+        - セキュリティ設定は一般的なベストプラクティスに従い設定し、コメントには「なぜ」を記載する
+        - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
+    - Lambda ： `Type: AWS::Serverless::Function`
+      - Properties
+        - Architectures
+          - arm64
+        - Timeout: 30
+        - MemorySize: 128
+        - Runtime: provided.al2023
+        - CodeUri: ./PreSignUpFunction
+        - Environment:
+          - Variables:
+            - ALLOWED_EMAIL_DOMAINS: secrets.ALLOW_DOMAIN
+      - Metadata
+        - `BuildMethod: rust-cargolambda`
+
+## PreSignUpFunction
+
+Rustで実装する。
+
+メールアドレスのドメイン部が`ALLOWED_EMAIL_DOMAINS`(secrets.ALLOW_DOMAIN)と一致するか検証する。
+
+## 設定
+
+### GitHub Actionsのsecrets
+
+| 設定名 | 設定値 |
+|--|--|
+| secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v4`の`role-to-assume`に指定するARN |
+| secrets.SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
+| secrets.ALLOW_DOMAIN | ユーザー登録できるメールアドレスのドメイン部 |
 
 ### AWS SAMで使用する設定
 

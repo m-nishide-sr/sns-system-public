@@ -8,7 +8,7 @@
 |--|--|
 | secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v4`の`role-to-assume`に指定するARN |
 | secrets.SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
-| secrets.ALLOW_DOMAIN | ユーザー登録できるメールアドレスのドメイン部 |
+| secrets.ALLOW_DOMAIN | ユーザー登録できるメールアドレスのドメイン部("@"は含まない) |
 
 ### ブランチ保護
 

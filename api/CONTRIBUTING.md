@@ -319,7 +319,7 @@ cargo fmt
 cargo fmt -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test
-cargo test --all-features
+cargo test --all-features -- --include-ignored
 ```
 
 加えて、対象機能に性質ベースで検証すべきロジックがある場合は、`proptest` によるプロパティテストを追加・実行すること。
