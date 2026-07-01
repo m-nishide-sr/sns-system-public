@@ -47,7 +47,7 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
     run(service_fn(handler)).await
 }

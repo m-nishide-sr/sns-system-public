@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリのチェックアウト
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Rustツールチェーンのセットアップ
         uses: dtolnay/rust-toolchain@stable
@@ -31,7 +31,7 @@ jobs:
           components: clippy
 
       - name: AWS SAM CLIのセットアップ
-        uses: aws-actions/setup-sam@v2
+        uses: aws-actions/setup-sam@v3
 
       - name: sam validate --lint の実行
         working-directory: auth
@@ -58,10 +58,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリのチェックアウト
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: AWSクレデンシャルの設定
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-3
@@ -73,7 +73,7 @@ jobs:
         run: pip install cargo-lambda
 
       - name: AWS SAM CLIのセットアップ
-        uses: aws-actions/setup-sam@v2
+        uses: aws-actions/setup-sam@v3
 
       - name: デプロイステージの設定
         id: stage
