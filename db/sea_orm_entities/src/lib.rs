@@ -4,6 +4,6 @@
 //! Do not edit the files in `entity/` manually.
 //!
 //! Generated from the database schema defined in
-//! `inquiry-api/liquibase_migrate/changes/`.
+//! `db/liquibase/changes/`.
 
 pub mod entity;

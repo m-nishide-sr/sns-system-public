@@ -5,8 +5,9 @@ You MUST read [README.md](./README.md) before working in this directory to under
 ## Requirements
 
 - Language: Write all documentation, comments, commit messages, and review results in Japanese.
-- API changes: Consult `/api/README.md` beforehand.
-- Database changes: Consult `/db/README.md` beforehand.
-- Frontend changes: Consult `/frontend/README.md` beforehand.
+- API changes: Consult `/docs/api.md` beforehand.
+- AUTH changes: Consult `/docs/auth.md` beforehand.
+- Database changes: Consult `/docs/db.md` beforehand.
+- Frontend changes: Consult `/docs/frontend.md` beforehand.
 - CI/CD changes: Consult `/.github/workflows/README.md` beforehand.
 - Tracking: Append points requiring consideration, inconsistencies, unresolved issues, and other TODOs to `/TODO.md`.

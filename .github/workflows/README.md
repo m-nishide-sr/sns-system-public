@@ -44,7 +44,7 @@
 
 | 設定名 | 設定値 |
 |--|--|
-| secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v4`の`role-to-assume`に指定するARN |
+| secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v6`の`role-to-assume`に指定するARN |
 | secrets.SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
 
 認証はGitHubのOIDCで`aws-actions/configure-aws-credentials@v6`から認証を通るように設定済みなので、`role-to-assume`に適切なロールのARNを設定していればSAM SAMをデプロイ可。

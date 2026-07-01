@@ -1,4 +1,4 @@
-# SNSシステム AUTHサブシステム
+# SNSシステム 認証基盤サブシステム
 
 ## 概要
 
@@ -12,13 +12,14 @@
   - /AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
   - /api ： APIのルート
   - /auth ： 認証のルート
-    - /auth/README.md ： 人間とAI向けにDBの詳細の説明を記述する。
-    - /auth/AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
+    - /auth/AGENTS.md ： AI向けプロンプトを記述
     - /auth/template.yaml ： 認証のIaC
     - /auth/PreSignUpFunction ： PreSignUpFunctionを実装するルートディレクトリ
       - /auth/PreSignUpFunction/Cargo.toml ： パッケージのマニフェストファイル
       - /auth/PreSignUpFunction/src/main.rs ： PreSignUpFunctionの実装
   - /db ： DBのルート
+  - /docs ： ドキュメントのルート
+    - /docs/auth.md ： 人間とAI向けに認証基盤の詳細の説明を記述
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
 
@@ -39,7 +40,7 @@
         - ブランチが`develop` or `release`
       - steps
         - AWSのクレデンシャルの設定
-          - uses: aws-actions/configure-aws-credentials@v4
+          - uses: aws-actions/configure-aws-credentials@v6
             - with:
               - role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
               - aws-region: ap-northeast-3
@@ -95,7 +96,7 @@ Rustで実装する。
 
 | 設定名 | 設定値 |
 |--|--|
-| secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v4`の`role-to-assume`に指定するARN |
+| secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v6`の`role-to-assume`に指定するARN |
 | secrets.SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
 | secrets.ALLOW_DOMAIN | ユーザー登録できるメールアドレスのドメイン部 |
 
