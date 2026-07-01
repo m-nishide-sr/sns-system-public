@@ -1,0 +1,233 @@
+name: SNSシステム DB CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - 'db/**'
+      - '.github/workflows/sns-system-db-cicd.yaml'
+  pull_request:
+    paths:
+      - 'db/**'
+      - '.github/workflows/sns-system-db-cicd.yaml'
+
+env:
+  AWS_REGION: ap-northeast-3
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v2
+
+      - name: sam validate --lint の実行
+        working-directory: db
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-3
+        run: sam validate --lint
+
+      - name: cargo check の実行
+        working-directory: db/sea_orm_entities
+        run: cargo check
+
+      - name: cargo test の実行（軽量）
+        working-directory: db/sea_orm_entities
+        run: cargo test
+
+      - name: cargo clippy の実行
+        working-directory: db/sea_orm_entities
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: PostgreSQL v16の起動
+        run: |
+          docker run --rm --name testdb-postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_DB=postgres \
+            -p 5432:5432 -d postgres:16
+          until docker exec testdb-postgres pg_isready -U postgres -d postgres; do
+            sleep 1
+          done
+
+      - name: Liquibaseによるマイグレーションの実施
+        run: |
+          docker run --rm \
+            -e LIQUIBASE_HUB_MODE=off \
+            -e LIQUIBASE_COMMAND_PASSWORD=postgres \
+            --network host \
+            -v "${{ github.workspace }}:/workspace" \
+            liquibase/liquibase:4.33.0 \
+            --search-path=/workspace \
+            --changelog-file=db/liquibase/changelog.xml \
+            --contexts=local \
+            --url=jdbc:postgresql://localhost:5432/postgres \
+            --username=postgres \
+            --add-define=Stage=local \
+            --add-define=AWS_ACCOUNT_ID=123456789012 \
+            update
+
+      - name: cargo test の実行（全数）
+        working-directory: db/sea_orm_entities
+        run: cargo test --all-features -- --include-ignored
+
+  migrate:
+    name: マイグレーション
+    needs: validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWSクレデンシャルの設定
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-3
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v2
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/release" ]; then
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: sam deploy の実行
+        working-directory: db
+        run: |
+          sam deploy \
+            --stack-name sns-db-${{ steps.stage.outputs.stage }} \
+            --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
+            --parameter-overrides \
+              Stage=${{ steps.stage.outputs.stage }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3
+
+      - name: Liquibaseによるマイグレーションの実施
+        run: |
+          STAGE=${{ steps.stage.outputs.stage }}
+          STACK_NAME=sns-db-${STAGE}
+          DSQL_ENDPOINT=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs[?ExportName=='${STACK_NAME}-DSQLEndpoint'].OutputValue" \
+            --output text)
+          echo "::add-mask::$DSQL_ENDPOINT"
+          TOKEN=$(aws dsql get-token \
+            --hostname "$DSQL_ENDPOINT" \
+            --region "${{ env.AWS_REGION }}")
+          echo "::add-mask::$TOKEN"
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+          echo "::add-mask::$AWS_ACCOUNT_ID"
+          docker run --rm \
+            -e LIQUIBASE_HUB_MODE=off \
+            -e LIQUIBASE_COMMAND_PASSWORD="$TOKEN" \
+            -v "${{ github.workspace }}:/workspace" \
+            liquibase/liquibase:4.33.0 \
+            --search-path=/workspace \
+            --changelog-file=db/liquibase/changelog.xml \
+            --contexts="${STAGE}" \
+            --url="jdbc:postgresql://${DSQL_ENDPOINT}/postgres" \
+            --username="admin" \
+            --add-define=Stage="${STAGE}" \
+            --add-define=AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}" \
+            update
+
+  generate_orm:
+    name: ORM生成
+    needs: migrate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWSクレデンシャルの設定
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-3
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/release" ]; then
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: DSQLエンドポイントの取得
+        run: |
+          STAGE=${{ steps.stage.outputs.stage }}
+          STACK_NAME=sns-db-${STAGE}
+          DSQL_ENDPOINT=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs[?ExportName=='${STACK_NAME}-DSQLEndpoint'].OutputValue" \
+            --output text)
+          echo "::add-mask::$DSQL_ENDPOINT"
+          echo "DSQL_ENDPOINT=$DSQL_ENDPOINT" >> "$GITHUB_ENV"
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: sea-orm-cliのインストール
+        run: cargo install sea-orm-cli
+
+      - name: ORM エンティティの生成
+        run: |
+          TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
+            --region "${{ env.AWS_REGION }}" \
+            --expires-in 3600 \
+            --hostname "$DSQL_ENDPOINT")
+          echo "::add-mask::$TOKEN"
+          ENCODED_TOKEN=$(printf '%s' "$TOKEN" | jq -rR @uri)
+          DATABASE_URL="postgres://admin:${ENCODED_TOKEN}@${DSQL_ENDPOINT}:5432/postgres?sslmode=require"
+          sea-orm-cli generate entity \
+            -u "$DATABASE_URL" \
+            -o db/sea_orm_entities/src/entity \
+            --ignore-tables databasechangelog \
+            --ignore-tables databasechangeloglock
+
+      - name: プルリクエストの作成
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="auto/update-sea-orm-entities-$(date +%Y%m%d%H%M%S)"
+          git checkout -b "$BRANCH"
+          git add db/sea_orm_entities/src/entity/
+          git diff --cached --quiet && echo "変更なし" && exit 0
+          git commit -m "chore: sea-orm-cliによるORMエンティティの自動更新"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore: sea-orm-cliによるORMエンティティの自動更新" \
+            --body "sea-orm-cliにより自動生成されたORMエンティティの更新。" \
+            --base "${{ github.ref_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
