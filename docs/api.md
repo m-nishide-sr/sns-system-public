@@ -12,8 +12,7 @@
   - /README.md ： システム全体の概要説明
   - /AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
   - /api ： APIのルート
-    - /api/README.md ： 人間とAI向けにAPIの詳細の説明を記述する。
-    - /api/AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
+    - /api/AGENTS.md ： AI向けプロンプトを記述
     - /api/template.yaml ： APIのIaC
     - /api/openapi.yaml ： API定義(自動生成)。
     - /api/lambda ： Lambdaを実装するRustパッケージ
@@ -21,6 +20,8 @@
       - /api/lambda/src/*.rs ： Rustプログラム実装
       - /api/lambda/src/bin/export_openapi.rs ： `openapi.yaml`生成関数
   - /db ： DBのルート
+  - /docs ： ドキュメントのルート
+    - /docs/api.md ： 人間とAI向けにAPIの詳細の説明を記述
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
 
@@ -70,14 +71,14 @@
     - テスト実行用環境構築
       - PostgreSQL v16の立ち上げ
         ```bash
-          docker run --name testdb-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=postgres -p 5432:5432 -d postgres:16
-          until docker exec testdb-postgres pg_isready -U postgres -d postgres; do
-            sleep 1
-          done
+        docker run --rm --name testdb-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=postgres -p 5432:5432 -d postgres:16
+        until docker exec testdb-postgres pg_isready -U postgres -d postgres; do
+          sleep 1
+        done
         ```
       - Liquibase v4.33.0の立ち上げ・マイグレーションの実施
         ```bash
-          docker run --rm -e LIQUIBASE_HUB_MODE=off --network host -v "${{ github.workspace }}:/workspace" liquibase/liquibase:4.33.0 --search-path=/workspace --changelog-file=db/liquibase/changelog.xml --contexts=local --url=jdbc:postgresql://localhost:5432/postgres --username=postgres --password=postgres update
+        docker run --rm -e LIQUIBASE_HUB_MODE=off --network host -v "${{ github.workspace }}:/workspace" liquibase/liquibase:4.33.0 --search-path=/workspace --changelog-file=db/liquibase/changelog.xml --contexts=local --url=jdbc:postgresql://localhost:5432/postgres --username=postgres --password=postgres update
         ```
     - `cargo test --all-features -- --include-ignored`でテスト実行
   - deploy

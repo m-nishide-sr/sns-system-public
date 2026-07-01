@@ -13,10 +13,11 @@
   - /api ： APIのルート
   - /auth ： 認証のルート
   - /db ： DBのルート
+  - /docs ： ドキュメントのルート
+    - /docs/review.md ： 人間とAI向けにレビュー資料管理の詳細の説明を記述
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料管理のルート
-    - /review/README.md ： 人間とAI向けにレビュー資料管理の詳細の説明を記述する。
-    - /review/AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
+    - /review/AGENTS.md ： AI向けプロンプトを記述
     - /review/template.yaml ： レビュー資料公開インフラのIaC
 
 ## レビュー資料管理 インフラ構成

@@ -1,4 +1,4 @@
-# SNSシステム AUTHサブシステム
+# SNSシステム 認証基盤サブシステム
 
 ## 概要
 
@@ -12,13 +12,14 @@
   - /AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
   - /api ： APIのルート
   - /auth ： 認証のルート
-    - /auth/README.md ： 人間とAI向けにDBの詳細の説明を記述する。
-    - /auth/AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
+    - /auth/AGENTS.md ： AI向けプロンプトを記述
     - /auth/template.yaml ： 認証のIaC
     - /auth/PreSignUpFunction ： PreSignUpFunctionを実装するルートディレクトリ
       - /auth/PreSignUpFunction/Cargo.toml ： パッケージのマニフェストファイル
       - /auth/PreSignUpFunction/src/main.rs ： PreSignUpFunctionの実装
   - /db ： DBのルート
+  - /docs ： ドキュメントのルート
+    - /docs/auth.md ： 人間とAI向けに認証基盤の詳細の説明を記述
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
 

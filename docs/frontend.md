@@ -14,6 +14,8 @@
   - /api ： APIのルート
   - /auth ： 認証のルート
   - /db ： DBのルート
+  - /docs ： ドキュメントのルート
+    - /docs/frontend.md ： 人間とAI向けにフロントエンドの詳細の説明を記述
   - /frontend ： フロントエンドのルート
     - /frontend/template.yaml ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
