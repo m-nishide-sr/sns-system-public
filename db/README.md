@@ -244,7 +244,7 @@ Aurora DSQLはほぼPostgreSQL互換だが、以下に注意。
 
 | 設定名 | 設定値 |
 |--|--|
-| AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v4`の`role-to-assume`に指定するARN |
+| AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v6`の`role-to-assume`に指定するARN |
 | SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
 
 ## 既知の問題

@@ -24,16 +24,28 @@
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
 
-## Rustのコーディング規約
+## Rust・AWS Lambdaのコーディング規約
 
-- `[package]`
-  - edition : `2024`
-- `[profile.release]`
-  - lto = true
-  - codegen-units = 1
-  - opt-level = "z"
-  - panic = "abort"
-  - strip = true
+- AWS Lambdaの設定
+  - メモリ ： 128MB
+  - アーキテクチャ ： ARM
+  - ランタイム ： provided.al2023
+  - タイムアウト ： 10秒
+- Cargo.toml
+  - `[package]`
+    - edition : `2024`
+  - `[profile.release]`
+    - lto = true
+    - codegen-units = 1
+    - opt-level = "3"
+    - panic = "abort"
+    - strip = true
+- エントリポイント
+  - Lambdaの128MBに割り当てられているCPUは約0.08コア(1/12コア)であるため、シングルスレッドに最適化する。  
+    ```rust
+    #[tokio::main(flavor = "current_thread")]
+    async fn main() {
+    ```
 - フォーマッター ： rustfmt
 - ドキュメンテーションコメント ： 日本語で記載。ドキュメントに出力されることを常に意識して詳細に記載する。
 - ドキュメント生成コマンド ： `cargo doc --no-deps`で出力する。※ドキュメントは`/review`レビュー資料管理で使用している。
@@ -88,7 +100,7 @@
 
 | 設定名 | 設定値 |
 |--|--|
-| AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v4`の`role-to-assume`に指定するARN |
+| AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v6`の`role-to-assume`に指定するARN |
 | SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
 
 ### AWS SAMのOutputsでExportする値
