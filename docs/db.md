@@ -142,6 +142,32 @@ sea-orm-cli generate entity -u "$DATABASE_URL" -o infrastructure/sea_orm/src/ent
 
 #### DPUについて(実行計画の例)
 
+##### INSERT例
+
+純粋にINSERTをした場合のDPU消費量 ： 約0.03626DPU (=約0.0000003626USD/INSERT処理) (=約0.000058987768円/INSERT処理)
+
+```sql
+EXPLAIN ANALYZE VERBOSE INSERT INTO messages (cognito_id, body, is_from_user)
+VALUES (
+    '12345678-abcd-7a8b-9c0d-1e2f3a4b5c6d', -- 外部から渡されたcognito_id
+    'test',
+    true                                     -- 利用者からの送信
+);
+
+Insert on public.messages  (cost=0.00..0.01 rows=0 width=0) (actual time=0.066..0.067 rows=0 loops=1)
+  ->  Result  (cost=0.00..0.01 rows=1 width=73) (actual time=0.019..0.020 rows=1 loops=1)
+        Output: gen_random_uuid(), '12345678-abcd-7a8b-9c0d-1e2f3a4b5c6d'::uuid, CURRENT_TIMESTAMP, 'test'::text, true
+Query Identifier: dgrwqzcrwg49h
+Planning Time: 0.022 ms
+Execution Time: 0.656 ms
+Statement DPU Estimate:
+  Compute: 0.00083 DPU
+  Read: 0.00047 DPU (Transaction minimum: 0.00375)
+  Write: 0.01748 DPU (Transaction minimum: 0.05000)
+  Multi-Region Write: 0.01748 DPU (Transaction minimum: 0.05000)
+  Total: 0.03626 DPU
+```
+
 ##### SELECT例
 
 主キーを条件として、INDEXにINCLUDEされているカラムだけをSELECTした場合のDPU消費量 ： 約0.00182DPU (=約0.0000000182USD/SELECT処理) (=約0.000002960776円/SELECT処理)
@@ -169,39 +195,26 @@ Statement DPU Estimate:
   Total: 0.00182 DPU
 ```
 
-##### INSERT例
+## DB インフラ構成
 
-純粋にINSERTをした場合のDPU消費量 ： 約0.03626DPU (=約0.0000003626USD/INSERT処理) (=約0.000058987768円/INSERT処理)
-
-```sql
-EXPLAIN ANALYZE VERBOSE INSERT INTO messages (cognito_id, body, is_from_user)
-VALUES (
-    '12345678-abcd-7a8b-9c0d-1e2f3a4b5c6d', -- 外部から渡されたcognito_id
-    'こんにちは！このメッセージはデフォルト値を使って挿入されています。',
-    true                                     -- 利用者からの送信
-);
-
-Insert on public.messages  (cost=0.00..0.01 rows=0 width=0) (actual time=0.066..0.067 rows=0 loops=1)
-  ->  Result  (cost=0.00..0.01 rows=1 width=73) (actual time=0.019..0.020 rows=1 loops=1)
-        Output: gen_random_uuid(), '12345678-abcd-7a8b-9c0d-1e2f3a4b5c6d'::uuid, CURRENT_TIMESTAMP, 'こんにちは！このメッセージはデフォルト値を使って挿入されています。'::text, true
-Query Identifier: dgrwqzcrwg49h
-Planning Time: 0.022 ms
-Execution Time: 0.656 ms
-Statement DPU Estimate:
-  Compute: 0.00083 DPU
-  Read: 0.00047 DPU (Transaction minimum: 0.00375)
-  Write: 0.01748 DPU (Transaction minimum: 0.05000)
-  Multi-Region Write: 0.01748 DPU (Transaction minimum: 0.05000)
-  Total: 0.03626 DPU
-```
-
-## インフラ構成
-
-- Aurora DSQL ： `Type: AWS::DSQL::Cluster`
-  - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
-- Role ： `Type: AWS::IAM::Role`
-  - 上記のAurora DSQLリソースへの`dsql:DbConnect`権限
-  - Role名 ： `sns-db-${Stage}-lambda-role`
+- /db/template.yaml
+  - Parameters
+    - Stage ： デプロイステージ
+      - Type: String
+      - AllowedValues:
+        - develop
+        - release
+    - SubSystem ： サブシステム分類名(ここでは`db`のみ)
+      - Type: String
+      - Default: db
+      - AllowedValues:
+        - db
+  - Resources
+    - Aurora DSQL ： `Type: AWS::DSQL::Cluster`
+      - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
+    - Role ： `Type: AWS::IAM::Role`
+      - 上記のAurora DSQLリソースへの`dsql:DbConnect`権限
+      - Role名 ： `sns-db-${Stage}-lambda-role`
 
 ## CI/CD
 
@@ -281,6 +294,13 @@ Aurora DSQLはほぼPostgreSQL互換だが、以下に注意。
 | スタック名 | sns-${SubSystem}-${Stage} |
 | Lambdaの実行用AWSロール名 | sns-db-${Stage}-lambda-role |
 
+### AWS SAMのOutputsでExportする値
+
+| 概要 | Export名 | Value |
+|--|--|
+| DSQLのエンドポイント | sns-${SubSystem}-${Stage}-DSQLEndpoint | !GetAtt <`Type: AWS::DSQL::Cluster`のリソース>.ConnectionString |
+| DSQLへのアクセス権限Role | sns-${SubSystem}-${Stage}-LambdaRoleArn | !GetAtt <`Type: AWS::Cognito::UserPoolClient`のリソース>.Arn |
+
 ### GitHub Actionsで使用する設定
 
 | 設定名 | 設定値 |
@@ -288,7 +308,3 @@ Aurora DSQLはほぼPostgreSQL互換だが、以下に注意。
 | AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v6`の`role-to-assume`に指定するARN |
 | SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
 | secrets.ALLOW_DOMAIN | ユーザー登録できるメールアドレスのドメイン部("@"は含まない) |
-
-## 既知の問題
-
-* Liquibase v5ではJDBCドライバが同梱されなくなり、`lpm`コマンドでJDBCドライバをダウンロードできるようになるとのことだが未対応。一旦はv4.33.0を引き続き使用する。
