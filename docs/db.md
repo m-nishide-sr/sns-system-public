@@ -245,7 +245,7 @@ Statement DPU Estimate:
       STAGE=${{ github.ref == 'refs/heads/release' && 'release' || 'develop' }}
       DSQL_ENDPOINT=$(aws cloudformation describe-stacks --stack-name <スタック名> --query "Stacks[0].Outputs[?ExportName=='<スタック名>-DSQLEndpoint'].OutputValue" --output text)
       echo "::add-mask::$DSQL_ENDPOINT"
-      TOKEN=$(aws dsql get-token --hostname $DSQL_ENDPOINT --region ap-northeast-3)
+      TOKEN=$(aws dsql generate-db-connect-admin-auth-token --hostname $DSQL_ENDPOINT --region ap-northeast-3)
       echo "::add-mask::$TOKEN"
       AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
       echo "::add-mask::$AWS_ACCOUNT_ID"
@@ -299,7 +299,7 @@ Aurora DSQLはほぼPostgreSQL互換だが、以下に注意。
 | 概要 | Export名 | Value |
 |--|--|
 | DSQLのエンドポイント | sns-${SubSystem}-${Stage}-DSQLEndpoint | !GetAtt <`Type: AWS::DSQL::Cluster`のリソース>.ConnectionString |
-| DSQLへのアクセス権限Role | sns-${SubSystem}-${Stage}-LambdaRoleArn | !GetAtt <`Type: AWS::Cognito::UserPoolClient`のリソース>.Arn |
+| DSQLへのアクセス権限Role | sns-${SubSystem}-${Stage}-LambdaRoleArn | !GetAtt <`Type: AWS::IAM::Role`のリソース>.Arn |
 
 ### GitHub Actionsで使用する設定
 
