@@ -1,0 +1,54 @@
+{
+  "name": "My Dev Container",
+  "image": "mcr.microsoft.com/devcontainers/rust:latest",
+  // GPG keys and agent will be automatically forwarded to the DevContainer by VS Code.
+  // GPGの鍵とエージェントはVS Codeによって自動的にDevContainer内へ転送されます。
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "fill-labs.dependi",
+        "rust-lang.rust-analyzer",
+        "dustypomerleau.rust-syntax",
+        "tamasfe.even-better-toml",
+        "eamodio.gitlens",
+        "github.vscode-github-actions",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          }
+        },
+        "rust-analyzer.linkedProjects": [
+          "api/lambda/Cargo.toml",
+          "db/sea_orm_entities/Cargo.toml",
+          "auth/PreSignUpFunction/Cargo.toml"
+        ],
+        "rust-analyzer.server.extraEnv": {
+          "PATH": "/home/codespace/.cargo/bin:/usr/bin:/bin"
+        },
+        "editor.wordWrap": "on",
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+        // Rustファイルには rust-analyzer（標準のrustfmt）を割り当てる
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        },
+        // Cargo.toml などの設定ファイル用
+        "[toml]": {
+          "editor.defaultFormatter": "tamasfe.even-better-toml"
+        },
+        "editor.formatOnSave": true
+      }
+    }
+  }
+}
