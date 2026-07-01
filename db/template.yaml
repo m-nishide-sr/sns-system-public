@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム DB
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイステージ
+  SubSystem:
+    Type: String
+    Default: db
+    AllowedValues:
+      - db
+    Description: サブシステム分類名
+
+Conditions:
+  IsRelease: !Equals [!Ref Stage, release]
+
+Resources:
+  DsqlCluster:
+    Type: AWS::DSQL::Cluster
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      RoleName: !Sub sns-db-${Stage}-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: dsql-db-connect
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnect
+                Resource: !Sub arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:dbuser:${DsqlCluster}/*
+
+Outputs:
+  DSQLEndpoint:
+    Description: DSQLのエンドポイント
+    Value: !GetAtt DsqlCluster.Endpoint
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-DSQLEndpoint
+
+  LambdaRoleArn:
+    Description: DSQLへのアクセス権限Role
+    Value: !GetAtt LambdaRole.Arn
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-LambdaRoleArn
