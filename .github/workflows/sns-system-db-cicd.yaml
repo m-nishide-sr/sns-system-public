@@ -85,8 +85,11 @@ jobs:
   migrate:
     name: マイグレーション
     needs: validate
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v7
