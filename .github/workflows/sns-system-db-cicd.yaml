@@ -14,8 +14,7 @@ on:
       - '.github/workflows/sns-system-db-cicd.yaml'
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
 
 jobs:
   validate:
