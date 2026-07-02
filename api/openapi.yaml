@@ -1,0 +1,45 @@
+openapi: 3.0.3
+info:
+  title: SNS API
+  version: 1.0.0
+paths:
+  /api/v1/timeline:
+    get:
+      summary: タイムライン取得
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: before
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+  /api/v1/messages:
+    post:
+      summary: メッセージ投稿
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - body
+              properties:
+                body:
+                  type: string
+      responses:
+        '201':
+          description: Created
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

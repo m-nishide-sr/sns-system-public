@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SNS API
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+  SubSystem:
+    Type: String
+    Default: api
+    AllowedValues:
+      - api
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 10
+      Events:
+        GetTimeline:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApiGateway
+            Path: /api/v1/timeline
+            Method: GET
+        PostMessage:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApiGateway
+            Path: /api/v1/messages
+            Method: POST
+      Environment:
+        Variables:
+          RUST_BACKTRACE: '0'
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway URL
+    Value: !GetAtt ApiGateway.ApiEndpoint
+    Export:
+      Name: !Sub sns-api-${Stage}-apigatewayurl
