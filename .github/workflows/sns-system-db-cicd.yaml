@@ -156,8 +156,11 @@ jobs:
   generate_orm:
     name: ORM定義生成
     needs: migrate
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
     steps:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v7
