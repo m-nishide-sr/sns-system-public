@@ -63,7 +63,7 @@
 |--|--|--|--|--|
 | id | uuid | NOT NULL | gen_random_uuid() | 主キー。デフォルトでUUIDv4を採番する |
 | user_name | text | NOT NULL | '' | 投稿ユーザーのemailアドレスの@以前の文字列 |
-| cognito_id | uuid | NOT NULL | '' | 投稿ユーザーのCognitoサブジェクトID |
+| cognito_id | uuid | NOT NULL | '00000000-0000-0000-0000-000000000000' | 投稿ユーザーのCognitoサブジェクトID |
 | created_at | timestamptz | NOT NULL | CURRENT_TIMESTAMP | メッセージ作成日時 |
 | body | text | NOT NULL | '' | メッセージ本文 |
 | row_log | text | NOT NULL | なし(必須) | 生ログ。不具合などの調査時にのみ参照される想定 |
@@ -298,7 +298,7 @@ Aurora DSQLはほぼPostgreSQL互換だが、以下に注意。
 
 | 概要 | Export名 | Value |
 |--|--|
-| DSQLのエンドポイント | sns-${SubSystem}-${Stage}-DSQLEndpoint | !GetAtt <`Type: AWS::DSQL::Cluster`のリソース>.ConnectionString |
+| DSQLのエンドポイント | sns-${SubSystem}-${Stage}-DSQLEndpoint | !GetAtt <`Type: AWS::DSQL::Cluster`のリソース>.Endpoint |
 | DSQLへのアクセス権限Role | sns-${SubSystem}-${Stage}-LambdaRoleArn | !GetAtt <`Type: AWS::IAM::Role`のリソース>.Arn |
 
 ### GitHub Actionsで使用する設定
