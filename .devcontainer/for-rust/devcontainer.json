@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers-contrib/features/aws-sam-cli:1": {}
+    "ghcr.io/customink/codespaces-features/sam-cli:1": {}
   },
   "customizations": {
     "vscode": {
@@ -30,7 +30,8 @@
         "rust-analyzer.linkedProjects": [
           "api/lambda/Cargo.toml",
           "db/sea_orm_entities/Cargo.toml",
-          "auth/PreSignUpFunction/Cargo.toml"
+          "auth/PreSignUpFunction/Cargo.toml",
+          "core/Cargo.toml"
         ],
         "editor.wordWrap": "on",
         "editor.tabSize": 2,
