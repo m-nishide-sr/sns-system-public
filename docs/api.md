@@ -25,6 +25,68 @@
   - /frontend ： フロントエンドのルート
   - /review ： レビュー資料デプロイのルート
 
+## API
+
+### 1. タイムライン取得API
+最新のタイムライン（メッセージ一覧）を最大50件取得します。
+
+* メソッド：GET
+* パス：/api/v1/timeline（※パスは一般的な例です）
+* 認証：必須（Authorization: Bearer <JWT>）
+* 内部処理（DB）：
+  * 参照元：public.messages_latest ビュー
+    * 取得カラム：user_name, created_at, body, is_from_user
+    * ソート・制限：ORDER BY created_at DESC LIMIT 50
+
+#### リクエストパラメータ（Query）
+
+* before (string/ISO8601, オプション): 指定した日時より前のメッセージを取得する場合に使用。 [1] 
+
+#### レスポンス（JSON）
+
+* ステータスコード：200 OK
+* データ形式（created_at）：UTCのZ形式（例: 2026-07-02T02:24:00Z） [2] 
+
+```json
+[
+  {
+    "user_name": "田中太郎",
+    "created_at": "2026-07-02T02:24:00Z",
+    "body": "こんにちは！",
+    "is_from_user": true
+  }
+]
+```
+
+### 2. 投稿API
+新しいメッセージをタイムラインに投稿します。
+
+* メソッド：POST
+* パス：/api/v1/messages
+* 認証：必須（Authorization: Bearer <JWT>）
+* 内部処理（DB）：
+  * 挿入先：public.messages テーブル
+    * 挿入カラム：body（リクエストから取得）、その他のカラム（JWTのペイロードからシステムが自動設定）
+
+#### リクエストボディ（JSON）
+
+```json
+{
+  "body": "新しくメッセージを投稿します。"
+}
+```
+
+#### レスポンス（JSON）
+
+* ステータスコード：201 Created
+
+```json
+{
+  "status": "success",
+  "message": "Message created successfully"
+}
+```
+
 ## Rust・AWS Lambdaのコーディング規約
 
 - AWS Lambdaの設定
@@ -59,7 +121,7 @@
 
 ### 方針
 
-[CONTRIBUTING.md](./CONTRIBUTING.md)を参照し、また、一般的なベストプラクティスに従って実装する。
+[CONTRIBUTING.md](../api/CONTRIBUTING.md)を参照し、また、一般的なベストプラクティスに従って実装する。
 
 ## CI/CD
 

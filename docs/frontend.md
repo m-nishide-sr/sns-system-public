@@ -72,10 +72,15 @@
   - CloudFront ： `Type: AWS::CloudFront::Distribution`
     - `PricingPlan: Free` ： Flat-Rate PlanをFreeで作成
     - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
-    - `Origins`
-      - API Gatewayオリジン ： !ImportValue sns-api-${Stage}-apigatewayurl
-      - S3オリジン ： 以下に記載
-    - `CacheBehaviors`
+    - `DistributionConfig`
+      - `Enabled: true`
+      - `Origins`
+        - API Gatewayオリジン ： !Select [2, !Split ["/", !ImportValue sns-api-${Stage}-apigatewayurl]]
+        - S3オリジン ： 以下に記載しているS3をオリジンとする
+      - `DefaultCacheBehavior`
+        - オリジン ： `/`へのアクセスのすべてについて、デフォルトでS3をオリジンにする
+      - `CacheBehaviors`
+        - オリジン ： `/api/*`へのアクセスについて、API Gatewayをオリジンにする
   - S3
     - 上記のCloudFrontのオリジン。
     - フロントエンドの静的WEBページを公開する。
