@@ -19,6 +19,7 @@
       - /api/lambda/Cargo.toml ： パッケージのマニフェストファイル。
       - /api/lambda/src/*.rs ： Rustプログラム実装
       - /api/lambda/src/bin/export_openapi.rs ： `openapi.yaml`生成関数
+  - /core ： ビジネスロジックの実装のルート
   - /db ： DBのルート
   - /docs ： ドキュメントのルート
     - /docs/api.md ： 人間とAI向けにAPIの詳細の説明を記述
@@ -31,7 +32,7 @@
 最新のタイムライン（メッセージ一覧）を最大50件取得します。
 
 * メソッド：GET
-* パス：/api/v1/timeline（※パスは一般的な例です）
+* パス：/api/v1/timeline
 * 認証：必須（Authorization: Bearer <JWT>）
 * 内部処理（DB）：
   * 参照元：public.messages_latest ビュー
@@ -40,12 +41,12 @@
 
 #### リクエストパラメータ（Query）
 
-* before (string/ISO8601, オプション): 指定した日時より前のメッセージを取得する場合に使用。 [1] 
+* before (string/ISO8601, オプション): 指定した日時より前のメッセージを取得する場合に使用。
 
 #### レスポンス（JSON）
 
 * ステータスコード：200 OK
-* データ形式（created_at）：UTCのZ形式（例: 2026-07-02T02:24:00Z） [2] 
+* データ形式（created_at）：UTCのZ形式（例: 2026-07-02T02:24:00Z）
 
 ```json
 [
@@ -66,7 +67,7 @@
 * 認証：必須（Authorization: Bearer <JWT>）
 * 内部処理（DB）：
   * 挿入先：public.messages テーブル
-    * 挿入カラム：body（リクエストから取得）、その他のカラム（JWTのペイロードからシステムが自動設定）
+    * 挿入カラム：body（リクエストから取得）、その他のカラム（リクエストヘッダ、JWTのペイロード、およびシステム日時などから、システムが自動設定）
 
 #### リクエストボディ（JSON）
 
@@ -84,6 +85,76 @@
 {
   "status": "success",
   "message": "Message created successfully"
+}
+```
+
+## DB接続の実装について
+
+このRustはAWS Lambdaで実行される。Lambdaインスタンスの実行Role`dsql:DbConnect`権限が付与されているため以下の処理でIAM認証が通り、DatabaseConnectionインスタンスが取得できる。
+
+LambdaのAurora DSQL接続処理の例は以下の通り。
+
+```rust
+use aurora_dsql_sqlx_connector::pool;
+use sea_orm::{DatabaseConnection, SqlxPostgresConnector};
+pub(crate) async fn create_db(
+    role: &str,
+    endpoint: &str,
+    region: &str,
+) -> Result<DatabaseConnection, Error> {
+    tracing::info!("Creating database connection with Aurora DSQL SQLx connector...");
+    let pool = pool::connect(format!("postgres://{role}@{endpoint}/postgres?region={region}"))
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to connect to database: {}", e))?;
+
+    Ok(SqlxPostgresConnector::from_sqlx_postgres_pool(pool))
+}
+```
+
+## AWS LambdaのCold Start時のブーストの活用について
+
+AWS LambdaはARMの128MBを利用しており、1/12コアしか割り当てられていない。  
+Cold Start時、INITフェーズで最大2コアのCPUブースト枠が最大10000ms割り当てられるため、INITフェーズの間に重い処理をすべて終わらせておくことを意識して実装する。  
+ただし、INITフェーズが10000msで完了しなかった場合初期化が失敗したとみなし環境が再構築されるが、再構築時にはCPUブースト枠は失われている。INITフェーズが10000msで完了するようにすることを意識する。
+
+INVOKEフェーズ以降は1/12コアの割り当てに戻る。そうするとtokioのマルチスレッド処理は不要なので、`#[tokio::main(flavor = "current_thread")]`と明記しシングルスレッド固定にすることでtokioのマルチスレッド処理によるオーバーヘッドによる性能低下を回避する。
+
+Lambdaのエントリポイントの例は以下の通り。
+
+```rust
+use lambda_runtime::{Error, run, service_fn};
+use db::create_db; // 先述のAurora DSQL接続処理
+use common::function_handler; // 別途メイン処理を実装する
+use std::env;
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), Error> {
+    // ここからINITフェーズ
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_target(false)
+        .without_time()
+        .init();
+
+    let dsql_endpoint = env::var("DSQL_ENDPOINT").map_err(|_| {
+        tracing::error!("DSQL_ENDPOINT environment variable is not set");
+        anyhow::anyhow!("DSQL_ENDPOINT environment variable is not set")
+    })?;
+
+    let dsql_region = env::var("AWS_REGION").map_err(|_| {
+        tracing::error!("AWS_REGION environment variable is not set");
+        anyhow::anyhow!("AWS_REGION environment variable is not set")
+    })?;
+
+    // DB接続の初期化
+    // DSQLでユーザー名に紐づくIAM認証をあらかじめ設定している必要がある
+    let db = create_db("lambda", &dsql_endpoint, &dsql_region).await?;
+
+    // ここまでINITフェーズ
+    // runをawaitした瞬間からINVOKEフェーズ
+    run(service_fn(|event| {
+        let db = db.clone();
+        async move { function_handler(&db, event).await }
+    })).await
 }
 ```
 
