@@ -1,43 +1,121 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: SNS API
+  description: ''
+  license:
+    name: ''
   version: 1.0.0
 paths:
-  /api/v1/timeline:
-    get:
-      summary: タイムライン取得
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: before
-          required: false
-          schema:
-            type: string
-            format: date-time
-      responses:
-        '200':
-          description: OK
   /api/v1/messages:
     post:
-      summary: メッセージ投稿
-      security:
-        - bearerAuth: []
+      tags: []
+      operationId: post_message_doc
       requestBody:
-        required: true
+        description: 投稿メッセージ
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - body
-              properties:
-                body:
-                  type: string
+              $ref: '#/components/schemas/CreateMessageRequest'
+        required: true
       responses:
         '201':
           description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateMessageResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearerAuth: []
+  /api/v1/timeline:
+    get:
+      tags: []
+      operationId: get_timeline_doc
+      parameters:
+      - name: before
+        in: query
+        description: 取得対象の上限日時（ISO8601）
+        required: false
+        schema:
+          type: string
+          format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineMessageResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearerAuth: []
 components:
+  schemas:
+    CreateMessageRequest:
+      type: object
+      required:
+      - body
+      properties:
+        body:
+          type: string
+    CreateMessageResponse:
+      type: object
+      required:
+      - status
+      - message
+      properties:
+        message:
+          type: string
+        status:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+      - message
+      properties:
+        message:
+          type: string
+    TimelineMessageResponse:
+      type: object
+      required:
+      - user_name
+      - created_at
+      - body
+      - is_from_user
+      properties:
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        is_from_user:
+          type: boolean
+        user_name:
+          type: string
   securitySchemes:
     bearerAuth:
       type: http

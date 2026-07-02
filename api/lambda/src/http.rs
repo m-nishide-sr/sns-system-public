@@ -10,20 +10,110 @@ use sns_core::{
     },
 };
 use url::form_urlencoded;
+use utoipa::{
+    Modify, OpenApi, ToSchema,
+    openapi::{
+        Components,
+        security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+    },
+};
 use uuid::Uuid;
 
 use crate::auth::extract_authenticated_user;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 struct CreateMessageRequest {
     body: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 struct CreateMessageResponse {
     status: &'static str,
     message: &'static str,
 }
+
+#[derive(Debug, Serialize, ToSchema)]
+struct TimelineMessageResponse {
+    user_name: String,
+    #[schema(format = DateTime)]
+    created_at: String,
+    body: String,
+    is_from_user: bool,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+struct ErrorResponse {
+    message: String,
+}
+
+struct BearerSecurity;
+
+impl Modify for BearerSecurity {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.get_or_insert_with(Components::new);
+        components.add_security_scheme(
+            "bearerAuth",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .build(),
+            ),
+        );
+    }
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    info(title = "SNS API", version = "1.0.0"),
+    paths(get_timeline_doc, post_message_doc),
+    components(schemas(
+        CreateMessageRequest,
+        CreateMessageResponse,
+        TimelineMessageResponse,
+        ErrorResponse
+    )),
+    modifiers(&BearerSecurity)
+)]
+pub struct ApiDoc;
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/timeline",
+    params(
+        ("before" = Option<String>, Query, format = DateTime, description = "取得対象の上限日時（ISO8601）")
+    ),
+    responses(
+        (status = 200, description = "OK", body = [TimelineMessageResponse]),
+        (status = 400, description = "不正なリクエスト", body = ErrorResponse),
+        (status = 500, description = "内部エラー", body = ErrorResponse)
+    ),
+    security(
+        ("bearerAuth" = [])
+    )
+)]
+#[allow(dead_code)]
+async fn get_timeline_doc() {}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/messages",
+    request_body(
+        content = CreateMessageRequest,
+        content_type = "application/json",
+        description = "投稿メッセージ"
+    ),
+    responses(
+        (status = 201, description = "Created", body = CreateMessageResponse),
+        (status = 400, description = "不正なリクエスト", body = ErrorResponse),
+        (status = 500, description = "内部エラー", body = ErrorResponse)
+    ),
+    security(
+        ("bearerAuth" = [])
+    )
+)]
+#[allow(dead_code)]
+async fn post_message_doc() {}
 
 /// API Gatewayイベントを処理する。
 pub async fn function_handler<R: MessageRepository>(

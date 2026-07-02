@@ -1,12 +1,9 @@
-mod auth;
-mod db;
-mod http;
-
 use lambda_http::{run, service_fn};
 use lambda_runtime::Error;
+use sns_api_lambda::{db, http};
 use std::{env, sync::Arc};
 
-use crate::db::{SqlxMessageRepository, create_db};
+use db::{SqlxMessageRepository, create_db};
 
 /// Lambdaエントリポイント。
 #[tokio::main(flavor = "current_thread")]

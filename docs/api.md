@@ -14,7 +14,7 @@
   - /api ： APIのルート
     - /api/AGENTS.md ： AI向けプロンプトを記述
     - /api/template.yaml ： APIのIaC
-    - /api/openapi.yaml ： API定義(自動生成)。
+    - /api/openapi.yaml ： API定義(`utoipa`から自動生成)。
     - /api/lambda ： Lambdaを実装するRustパッケージ
       - /api/lambda/Cargo.toml ： パッケージのマニフェストファイル。
       - /api/lambda/src/*.rs ： Rustプログラム実装
@@ -27,6 +27,8 @@
   - /review ： レビュー資料デプロイのルート
 
 ## API
+
+`/api/openapi.yaml`は`api/lambda/src`配下の実装に付与した`utoipa`注釈（`#[utoipa::path(...)]`等）を`api/lambda/src/bin/export_openapi.rs`で集約・出力した結果を管理する。
 
 ### 1. タイムライン取得API
 最新のタイムライン（メッセージ一覧）を最大50件取得します。
@@ -189,6 +191,7 @@ async fn main() -> Result<(), Error> {
 - テスト実施コマンド ： `cargo test --all-features -- --include-ignored`で実施する。
   - プロパティテストは`#[ignore = "プロパティテストは重いためデフォルトでは実行しない"]`としてignoreを指定する。
   - PostgreSQLを使用する重いテストは`#[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]`としてignoreを指定する。
+- OpenAPI定義 ： `openapi.yaml`は手書きせず、`api/lambda/src/*.rs`の`utoipa`注釈から`cargo run --bin export_openapi`で生成する。
 
 ### 方針
 
@@ -242,4 +245,3 @@ async fn main() -> Result<(), Error> {
 | 概要 | Export名 | Value |
 |--|--|
 | API GatewayのURL | sns-api-${Stage}-apigatewayurl | !GetAtt <API Gatewayのリソース>.ApiUrl |
-
