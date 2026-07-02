@@ -1,0 +1,192 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SNSシステム API",
+    "description": "SNSシステムのタイムライン取得・メッセージ投稿APIです。",
+    "license": {
+      "name": ""
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/messages": {
+      "post": {
+        "tags": [
+          "sns_api::interface::handler"
+        ],
+        "summary": "メッセージ投稿ハンドラ（POST /api/v1/messages）。",
+        "description": "`public.messages` テーブルに新規メッセージを挿入します。\nJWTクレームから `cognito_id` と `user_name` を取得します。",
+        "operationId": "post_message",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "メッセージ投稿成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostMessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "リクエストエラー"
+          },
+          "401": {
+            "description": "認証エラー"
+          },
+          "500": {
+            "description": "サーバーエラー"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    },
+    "/api/v1/timeline": {
+      "get": {
+        "tags": [
+          "sns_api::interface::handler"
+        ],
+        "summary": "タイムライン取得ハンドラ（GET /api/v1/timeline）。",
+        "description": "`public.messages_latest` ビューから最新50件を取得します。",
+        "operationId": "get_timeline",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "description": "この日時より前のメッセージを取得（ISO8601 UTC）",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "タイムライン取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimelineItem"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証エラー"
+          },
+          "500": {
+            "description": "サーバーエラー"
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PostMessageRequest": {
+        "type": "object",
+        "description": "メッセージ投稿APIのリクエストボディ。",
+        "required": [
+          "body"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "メッセージ本文。"
+          }
+        }
+      },
+      "PostMessageResponse": {
+        "type": "object",
+        "description": "メッセージ投稿APIのレスポンス。",
+        "required": [
+          "status",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "メッセージ。"
+          },
+          "status": {
+            "type": "string",
+            "description": "処理結果。"
+          }
+        }
+      },
+      "TimelineItem": {
+        "type": "object",
+        "description": "タイムライン取得APIのレスポンスアイテム。",
+        "required": [
+          "user_name",
+          "created_at",
+          "body",
+          "is_from_user"
+        ],
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "メッセージ本文。"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "投稿日時（UTCのZ形式）。"
+          },
+          "is_from_user": {
+            "type": "boolean",
+            "description": "`true`: ユーザー投稿, `false`: システム投稿。"
+          },
+          "user_name": {
+            "type": "string",
+            "description": "投稿ユーザー名。"
+          }
+        }
+      },
+      "TimelineQuery": {
+        "type": "object",
+        "description": "タイムライン取得APIのクエリパラメータ。",
+        "properties": {
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "この日時より前のメッセージを取得します（ISO8601形式のUTC）。"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "jwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

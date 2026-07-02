@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム API
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイステージ
+  SubSystem:
+    Type: String
+    Default: api
+    AllowedValues:
+      - api
+    Description: サブシステム分類名
+
+Resources:
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # Cognito JWTオーソライザーを使用し、全エンドポイントを認証必須とする
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer:
+                Fn::ImportValue: !Sub sns-auth-${Stage}-CognitoIssuer
+              audience:
+                - Fn::ImportValue: !Sub sns-auth-${Stage}-UserPoolClientId
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      # AWSの推奨アーキテクチャ（ARM）を使用することでコスト削減する
+      Architectures:
+        - arm64
+      # メモリ128MBはLambdaの最小値であり、このAPIのワークロードに十分な容量
+      MemorySize: 128
+      Runtime: provided.al2023
+      Handler: bootstrap
+      CodeUri: ./lambda
+      Timeout: 10
+      # Lambda実行ロールはDBスタックで作成したものを再利用（DSQL IAM認証に必要なポリシーを含む）
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/sns-db-${Stage}-lambda-role
+      Environment:
+        Variables:
+          DSQL_ENDPOINT:
+            Fn::ImportValue: !Sub sns-db-${Stage}-DSQLEndpoint
+      Events:
+        GetTimeline:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /api/v1/timeline
+            Method: GET
+        PostMessage:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /api/v1/messages
+            Method: POST
+    Metadata:
+      BuildMethod: rust-cargolambda
+
+Outputs:
+  ApiUrl:
+    Description: API GatewayのURL
+    Value: !GetAtt Api.ApiEndpoint
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-apigatewayurl

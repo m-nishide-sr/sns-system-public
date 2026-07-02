@@ -1,0 +1,57 @@
+[package]
+name = "sns-api"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
+
+[[bin]]
+name = "export_openapi"
+path = "src/bin/export_openapi.rs"
+
+[lib]
+name = "sns_api"
+path = "src/lib.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[dependencies]
+# Lambda HTTP APIGateway HTTP APIサポート
+lambda_http = { version = "1", features = ["apigw_http"] }
+# HTTPルーティング
+axum = { version = "0.8", default-features = false, features = ["json", "query"] }
+# 非同期ランタイム（Lambdaのシングルスレッド最適化のため current_thread を使用）
+tokio = { version = "1", features = ["macros", "rt"] }
+# シリアライゼーション
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 日時処理（UTCのZ形式対応）
+chrono = { version = "0.4", features = ["serde"] }
+# PostgreSQL非同期クライアント
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-uuid-1"] }
+# DSQL用TLS（AWS環境ではSSL必須）
+openssl = { version = "0.10", features = ["v102", "v110"] }
+postgres-openssl = "0.5"
+# UUID生成（メッセージID用）
+uuid = { version = "1", features = ["v4"] }
+# AWS認証（DSQL IAM認証トークン生成）
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-sdk-dsql = "1"
+# OpenAPI定義生成
+utoipa = { version = "5", features = ["chrono", "uuid"] }
+# エラーハンドリング
+thiserror = "2"
+# Trait内のasync関数をdynで使うために必要
+async-trait = "0.1"
+
+[dev-dependencies]
+aws_lambda_events = { version = "1", default-features = false, features = ["apigw"] }
+http = "1"
+proptest = "1"
