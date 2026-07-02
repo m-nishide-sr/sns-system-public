@@ -1,0 +1,130 @@
+name: SNSシステム API CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - 'api/**'
+      - '.github/workflows/sns-system-api-cicd.yaml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - '.github/workflows/sns-system-api-cicd.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v3
+
+      - name: sam validate --lint の実行
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-3
+        run: sam validate --lint --template-file api/template.yaml
+
+      - name: cargo fmt -- --check の実行
+        working-directory: api/lambda
+        run: cargo fmt -- --check
+
+      - name: cargo check の実行
+        working-directory: api/lambda
+        run: cargo check
+
+      - name: cargo clippy の実行
+        working-directory: api/lambda
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: PostgreSQLの起動
+        run: |
+          docker run --rm --name testdb-postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_DB=postgres \
+            -p 5432:5432 \
+            -d postgres:16
+          until docker exec testdb-postgres pg_isready -U postgres -d postgres; do
+            sleep 1
+          done
+
+      - name: Liquibaseでローカルマイグレーション
+        run: |
+          docker run --rm \
+            -e LIQUIBASE_HUB_MODE=off \
+            --network host \
+            -v "${{ github.workspace }}:/workspace" \
+            liquibase/liquibase:4.33.0 \
+            --search-path=/workspace \
+            --changelog-file=db/liquibase/changelog.xml \
+            --contexts=local \
+            --url=jdbc:postgresql://localhost:5432/postgres \
+            --username=postgres \
+            --password=postgres \
+            update
+
+      - name: cargo test --all-features -- --include-ignored の実行
+        working-directory: api/lambda
+        run: cargo test --all-features -- --include-ignored
+
+  deploy:
+    name: デプロイ
+    needs: validate
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: AWSクレデンシャルの設定
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-3
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v3
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: sam build の実行
+        run: sam build --template-file api/template.yaml
+
+      - name: sam deploy の実行
+        run: |
+          sam deploy \
+            --template-file api/template.yaml \
+            --stack-name sns-api-${{ steps.stage.outputs.stage }} \
+            --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
+            --parameter-overrides \
+              Stage=${{ steps.stage.outputs.stage }} \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3
