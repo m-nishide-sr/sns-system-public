@@ -1,5 +1,5 @@
 --liquibase formatted sql
---changeset copilot:0004
+--changeset copilot:0004 context:local,develop
 CREATE TABLE public.messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_name text NOT NULL DEFAULT '',
