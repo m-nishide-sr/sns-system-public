@@ -4,7 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers-contrib/features/aws-sam-cli:1": {}
+    "ghcr.io/customink/codespaces-features/sam-cli": {}
   },
   "customizations": {
     "vscode": {
