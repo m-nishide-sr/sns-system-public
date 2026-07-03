@@ -2,6 +2,25 @@
 
 このディレクトリは、API・DB・Lambda・SeaORM などの外部技術に依存しない、アプリケーションの中核ロジックを配置するための領域です。
 
+## 構成と主なファイルの各説明
+
+- / ： リポジトリルート
+  - /.devcontainer/api/devcontainer.json ： API開発で利用するdevcontainer
+  - /.github/workflows/sns-system-core-cicd.yaml ： ビジネスロジックの自動テストを実行するCI/CDのGitHub Actions定義
+  - /README.md ： システム全体の概要説明
+  - /AGENTS.md ： AI向けプロンプトを記述する。上記README.mdを参照することを明記。
+  - /api ： APIのルート
+  - /core ： ビジネスロジックの実装のルート
+    - /core/common ： 一般的で普遍的な共通ロジックを実装する
+    - /core/domain ： 業務ルールを実装する
+    - /core/usecase ： ユースケースやシナリオの制御を実装する
+    - /core/infrastructure ： DB接続などを実装する
+  - /db ： DBのルート
+  - /docs ： ドキュメントのルート
+    - /docs/api.md ： 人間とAI向けにAPIの詳細の説明を記述
+  - /frontend ： フロントエンドのルート
+  - /review ： レビュー資料デプロイのルート
+
 ## 目的
 
 - DB が無くても単体テストできる状態を維持する
@@ -9,18 +28,10 @@
 - 業務ロジックを SeaORM、SQL、HTTP、AWS Lambda などの実装詳細から分離する
 - Repository trait によって依存性逆転を行い、外側の実装を差し替え可能にする
 
-提示された設計ルールに基づき、新しくチームに参入したエンジニアでも一目で全体像と実装ルールが理解できる、人間向けの /core/README.md を作成しました。
-先ほど指摘した「Usecase層からの common への依存許可」や「マッピングの実装場所」の補足も反映し、Rust特有の実装パターン（NewtypeやTrait）を意識した実践的なドキュメントに仕上げています。
-
 # Core Module (DDD & Clean Architecture)
 本システムは、**ドメイン駆動設計（DDD）**および**クリーンアーキテクチャ**の原則に基づき、ビジネスロジックを技術的詳細（データベースや外部APIなど）から完全に分離した疎結合な設計を採用しています。
 
-開発時は、各レイヤーの責務と**依存関係の方向（`domain` <- `usecase` <- `infrastructure`と常に内側へ向かう）**を必ず遵守してください。
-# Core Module (DDD & Clean Architecture)
-
-本システムは、**ドメイン駆動設計（DDD）**および**クリーンアーキテクチャ**の原則に基づき、ビジネスロジックを技術的詳細（データベースや外部API、サーバーレス環境など）から完全に分離した疎結合な設計を採用しています。
-
-開発時は、以下の共通設計原則と各レイヤーのルールを必ず遵守してください。
+開発時は、以下の共通設計原則と各レイヤーの責務と**依存関係の方向（`domain` <- `usecase` <- `infrastructure`と常に内側へ向かう）**を必ず遵守してください。
 
 ---
 
