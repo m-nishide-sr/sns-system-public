@@ -1,0 +1,138 @@
+openapi: 3.1.0
+info:
+  title: sns-system-api-lambda
+  description: ''
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /api/v1/messages:
+    post:
+      tags: []
+      summary: 投稿APIのOpenAPI定義。
+      operationId: create_message_endpoint_doc
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+        required: true
+      responses:
+        '201':
+          description: 投稿成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateMessageResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/timeline:
+    get:
+      tags: []
+      summary: タイムライン取得APIのOpenAPI定義。
+      operationId: timeline_endpoint_doc
+      parameters:
+      - name: before
+        in: query
+        description: ISO8601形式の境界日時
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: タイムライン取得成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimelineMessageResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    CreateMessageRequest:
+      type: object
+      description: メッセージ投稿リクエスト。
+      required:
+      - body
+      properties:
+        body:
+          type: string
+          description: 投稿本文。
+    CreateMessageResponse:
+      type: object
+      description: メッセージ投稿レスポンス。
+      required:
+      - status
+      - message
+      properties:
+        message:
+          type: string
+          description: 応答メッセージ。
+        status:
+          type: string
+          description: 処理ステータス。
+    ErrorResponse:
+      type: object
+      description: エラーレスポンス。
+      required:
+      - message
+      properties:
+        message:
+          type: string
+          description: エラー概要。
+    TimelineMessageResponse:
+      type: object
+      description: タイムライン取得レスポンス。
+      required:
+      - user_name
+      - created_at
+      - body
+      - is_from_user
+      properties:
+        body:
+          type: string
+          description: 投稿本文。
+        created_at:
+          type: string
+          format: date-time
+          description: 投稿日時。
+        is_from_user:
+          type: boolean
+          description: 利用者投稿かどうか。
+        user_name:
+          type: string
+          description: 投稿者名。

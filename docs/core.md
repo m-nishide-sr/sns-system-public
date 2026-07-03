@@ -121,3 +121,22 @@
 - [ ] ユースケース（`usecase/`）の中で、`if user.status == "active"` のようなビジネスルールの条件分岐を直接書いていないか？（ドメインエンティティのメソッドにするべき）
 - [ ] データベースへの保存・取得ロジックは、すべて `infrastructure/` のリポジトリ実装の中に閉じ込められているか？
 - [ ] 新しい外部ライブラリを追加する際、それが `domain/` に影響を与えていないか？
+
+## 実装したビジネスロジックの説明
+
+`/core` は依存境界ごとに `common`・`domain`・`usecase`・`infrastructure` の4クレートへ分割したCargo Workspaceとして実装した。
+
+- `common`
+  - レイヤー横断で使う `CoreError` と `Clock` 抽象を提供。
+  - ユースケースの時刻依存を差し替え可能にし、単体テストの再現性を担保。
+- `domain`
+  - `MessageBody`・`UserName`・`UserId` を値オブジェクト化し、生成時バリデーションで不正状態を防止。
+  - `MessageRepository` trait を定義し、永続化手段を抽象化。
+- `usecase`
+  - `GetTimelineUseCase` で「最大50件取得・before境界適用」を実装。
+  - `PostMessageUseCase` で入力検証・時刻付与・保存実行を実装。
+- `infrastructure`
+  - `SeaOrmMessageRepository` で `public.messages_latest` 参照と `public.messages` へのINSERTを実装。
+  - `db/sea_orm_entities` を利用してDBモデル依存をインフラ層へ閉じ込めた。
+
+これにより、API層はユースケースを呼び出すだけで業務要件を満たし、DB実装差し替え時もドメイン/ユースケースを変更せずに保守できる構成になっている。

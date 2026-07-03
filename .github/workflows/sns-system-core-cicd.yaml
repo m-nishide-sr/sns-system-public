@@ -1,0 +1,44 @@
+name: SNSシステム Core CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - 'core/**'
+      - 'db/sea_orm_entities/**'
+      - '.github/workflows/sns-system-core-cicd.yaml'
+  pull_request:
+    paths:
+      - 'core/**'
+      - 'db/sea_orm_entities/**'
+      - '.github/workflows/sns-system-core-cicd.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: cargo fmt -- --check の実行
+        working-directory: core
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: core
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test の実行
+        working-directory: core
+        run: cargo test --all-features -- --include-ignored
