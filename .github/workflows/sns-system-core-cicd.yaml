@@ -70,3 +70,27 @@ jobs:
       - name: cargo test の実行
         working-directory: core
         run: cargo test --all-features -- --include-ignored
+
+      - name: cargo fmt -- --check の実行
+        working-directory: api/lambda
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: api/lambda
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test の実行
+        working-directory: api/lambda
+        run: cargo test --all-features -- --include-ignored
+
+      - name: cargo fmt -- --check の実行
+        working-directory: db/sea_orm_entities
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: db/sea_orm_entities
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test の実行
+        working-directory: db/sea_orm_entities
+        run: cargo test --all-features -- --include-ignored

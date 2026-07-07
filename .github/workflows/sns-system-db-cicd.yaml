@@ -23,7 +23,6 @@ permissions:
 jobs:
   validate:
     name: 検証
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリのチェックアウト
@@ -89,7 +88,13 @@ jobs:
   migrate:
     name: マイグレーション
     needs: validate
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    if: >-
+      github.event_name == 'push' &&
+      github.actor != 'github-actions[bot]' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release') &&
+      github.event_name != 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == github.ref_name
     runs-on: ubuntu-latest
     permissions:
       id-token: write
