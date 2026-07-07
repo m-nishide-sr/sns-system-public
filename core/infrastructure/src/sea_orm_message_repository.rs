@@ -240,8 +240,8 @@ mod tests {
         assert_eq!(response[0].body, "third body");
         assert_eq!(response[1].body, "second body");
 
-        assert_eq!(response[0].is_from_user, true);
-        assert_eq!(response[1].is_from_user, false);
+        assert!(response[0].is_from_user);
+        assert!(!response[1].is_from_user);
 
         assert_eq!(response[0].user_name, third_email);
         assert_eq!(response[1].user_name, second_email);
