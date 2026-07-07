@@ -14,3 +14,8 @@ sea-orm.workspace = true
 sea_orm_entities = { path = "../../db/sea_orm_entities" }
 tracing = "0.1.44"
 uuid.workspace = true
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt"] }
+core_usecase = { path = "../usecase" }

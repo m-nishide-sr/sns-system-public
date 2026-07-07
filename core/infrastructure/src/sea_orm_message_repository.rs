@@ -108,11 +108,142 @@ fn to_timeline_message(row: QueryResult) -> CoreResult<TimelineMessage> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::create_db_postgres;
+    use chrono::Utc;
+    // use sea_orm::{ActiveModelTrait, ColumnTrait, Database, EntityTrait, QueryFilter, Set};
+    // use sea_orm_entities::entity::messages::{self, Column, Entity as Messages};
+    use core_usecase::{GetTimelineInput, GetTimelineOutput, GetTimelineUseCase, TimelineItem};
+    use serde::{Deserialize, Serialize};
+
+    use sea_orm_entities::entity::messages;
+
+    /// タイムライン取得レスポンス。
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    pub struct TimelineMessageResponse {
+        /// 投稿者名。
+        pub user_name: String,
+        /// 投稿日時。
+        pub created_at: DateTime<Utc>,
+        /// 投稿本文。
+        pub body: String,
+        /// 利用者投稿かどうか。
+        pub is_from_user: bool,
+    }
+
+    impl From<TimelineItem> for TimelineMessageResponse {
+        fn from(value: TimelineItem) -> Self {
+            Self {
+                user_name: value.user_name,
+                created_at: value.created_at,
+                body: value.body,
+                is_from_user: value.is_from_user,
+            }
+        }
+    }
 
     #[test]
     fn limitが0の場合はクエリで50件に補正する() {
         let statement = build_timeline_statement(None, 0);
         let debug = format!("{statement:?}");
         assert!(debug.contains("messages_latest"));
+    }
+
+    #[tokio::test]
+    #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
+    async fn 実際にローカルの_postgre_sqlに接続するテスト() {
+        let db = create_db_postgres().await.unwrap();
+        let cognito_id = uuid::Uuid::now_v7();
+        let repository = SeaOrmMessageRepository::new(db.clone());
+
+        let first_uuid = uuid::Uuid::now_v7();
+        let email = format!("local-get-{}@example.com", first_uuid);
+        messages::ActiveModel {
+            id: Set(first_uuid),
+            cognito_id: Set(cognito_id),
+            user_name: Set(email.clone()),
+            created_at: Set(chrono::Utc::now().fixed_offset()),
+            body: Set("older body".to_string()),
+            row_log: Set("older row log".to_string()),
+            is_from_user: Set(true),
+        }
+        .insert(&db)
+        .await
+        .expect("older test message insert should succeed");
+
+        let second_uuid = uuid::Uuid::now_v7();
+        let second_created_at = chrono::Utc::now().fixed_offset();
+        let second_email = format!("local-get-{}@example.com", second_uuid);
+        messages::ActiveModel {
+            id: Set(second_uuid),
+            cognito_id: Set(cognito_id),
+            user_name: Set(second_email.clone()),
+            created_at: Set(second_created_at),
+            body: Set("second body".to_string()),
+            row_log: Set("second row log".to_string()),
+            is_from_user: Set(false),
+        }
+        .insert(&db)
+        .await
+        .expect("newer test message insert should succeed");
+
+        let third_uuid = uuid::Uuid::now_v7();
+        let third_created_at = chrono::Utc::now().fixed_offset();
+        let third_email = format!("local-get-{}@example.com", third_uuid);
+        messages::ActiveModel {
+            id: Set(third_uuid),
+            cognito_id: Set(cognito_id),
+            user_name: Set(third_email.clone()),
+            created_at: Set(third_created_at),
+            body: Set("third body".to_string()),
+            row_log: Set("third row log".to_string()),
+            is_from_user: Set(true),
+        }
+        .insert(&db)
+        .await
+        .expect("newer test message insert should succeed");
+
+        let usecase = GetTimelineUseCase::new(repository);
+        let output: GetTimelineOutput = match usecase
+            .execute(GetTimelineInput {
+                limit: 2,
+                before: None,
+            })
+            .await
+        {
+            Ok(output) => output,
+            Err(err) => panic!("usecase execution failed: {}", err),
+        };
+        assert_eq!(output.items.len(), 2);
+        let response: Vec<TimelineMessageResponse> = output
+            .items
+            .into_iter()
+            .map(TimelineMessageResponse::from)
+            .collect();
+
+        assert_eq!(
+            response[0].created_at,
+            third_created_at
+                .format("%Y-%m-%dT%H:%M:%S.%6fZ")
+                .to_string()
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+        );
+        assert_eq!(
+            response[1].created_at,
+            second_created_at
+                .format("%Y-%m-%dT%H:%M:%S.%6fZ")
+                .to_string()
+                .parse::<DateTime<Utc>>()
+                .unwrap()
+        );
+
+        assert_eq!(response[0].body, "third body");
+        assert_eq!(response[1].body, "second body");
+
+        assert_eq!(response[0].is_from_user, true);
+        assert_eq!(response[1].is_from_user, false);
+
+        assert_eq!(response[0].user_name, third_email);
+        assert_eq!(response[1].user_name, second_email);
     }
 }
