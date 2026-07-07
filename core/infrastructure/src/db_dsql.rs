@@ -75,11 +75,7 @@ fn build_connection_string(role: &str, endpoint: &str, region: &str) -> String {
 ///
 /// - `aurora_dsql_sqlx_connector::pool::connect` が失敗した場合（IAM認証エラー、接続拒否等）
 ///   `"Failed to connect to database: ..."` メッセージを含む [`anyhow::Error`] を返します。
-///
-/// # Panics
-///
-/// この関数はパニックしません。
-pub async fn create_db(
+pub async fn create_db_dsql(
     role: &str,
     endpoint: &str,
     region: &str,

@@ -2,8 +2,10 @@
 //!
 //! Domainで定義したRepository traitを、SeaORMとDBスキーマに接続して実装する。
 
-pub mod db;
+pub mod db_dsql;
+pub mod db_postgres;
 pub mod sea_orm_message_repository;
 
-pub use db::create_db;
+pub use db_dsql::create_db_dsql;
+pub use db_postgres::create_db_postgres;
 pub use sea_orm_message_repository::SeaOrmMessageRepository;
