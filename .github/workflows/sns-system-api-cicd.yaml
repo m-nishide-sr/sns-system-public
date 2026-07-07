@@ -1,21 +1,25 @@
 name: SNSシステム API CI/CD
 
 on:
+  workflow_run:
+    workflows: ["SNSシステム DB CI/CD"]
+    types:
+      - completed
   push:
     branches:
       - develop
       - release
     paths:
-      - 'api/**'
-      - 'core/**'
-      - 'db/sea_orm_entities/**'
-      - '.github/workflows/sns-system-api-cicd.yaml'
+      - "api/**"
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - ".github/workflows/sns-system-api-cicd.yaml"
   pull_request:
     paths:
-      - 'api/**'
-      - 'core/**'
-      - 'db/sea_orm_entities/**'
-      - '.github/workflows/sns-system-api-cicd.yaml'
+      - "api/**"
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - ".github/workflows/sns-system-api-cicd.yaml"
 
 permissions:
   id-token: write
@@ -24,6 +28,7 @@ permissions:
 jobs:
   validate:
     name: 検証
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリのチェックアウト

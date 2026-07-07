@@ -1,17 +1,21 @@
 name: SNSシステム DB CI/CD
 
 on:
+  workflow_run:
+    workflows: ["SNSシステム 認証基盤 CI/CD"]
+    types:
+      - completed
   push:
     branches:
       - develop
       - release
     paths:
-      - 'db/**'
-      - '.github/workflows/sns-system-db-cicd.yaml'
+      - "db/**"
+      - ".github/workflows/sns-system-db-cicd.yaml"
   pull_request:
     paths:
-      - 'db/**'
-      - '.github/workflows/sns-system-db-cicd.yaml'
+      - "db/**"
+      - ".github/workflows/sns-system-db-cicd.yaml"
 
 permissions:
   contents: read
@@ -19,6 +23,7 @@ permissions:
 jobs:
   validate:
     name: 検証
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリのチェックアウト
