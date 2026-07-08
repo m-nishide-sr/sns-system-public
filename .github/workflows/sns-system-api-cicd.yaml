@@ -21,6 +21,10 @@ on:
       - "db/sea_orm_entities/**"
       - ".github/workflows/sns-system-api-cicd.yaml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   id-token: write
   contents: read
@@ -68,10 +72,7 @@ jobs:
     if: >-
       github.event_name == 'push' &&
       github.actor != 'github-actions[bot]' &&
-      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release') &&
-      github.event_name != 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == github.ref_name
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリのチェックアウト

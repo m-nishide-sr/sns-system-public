@@ -6,12 +6,16 @@ on:
       - develop
       - release
     paths:
-      - 'auth/**'
-      - '.github/workflows/sns-system-auth-cicd.yaml'
+      - "auth/**"
+      - ".github/workflows/sns-system-auth-cicd.yaml"
   pull_request:
     paths:
-      - 'auth/**'
-      - '.github/workflows/sns-system-auth-cicd.yaml'
+      - "auth/**"
+      - ".github/workflows/sns-system-auth-cicd.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   id-token: write

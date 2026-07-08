@@ -23,13 +23,21 @@ panic = "abort"
 strip = true
 
 [dependencies]
+aws_lambda_events = "1.2.0"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 core_common = { path = "../../core/common" }
 core_infrastructure = { path = "../../core/infrastructure" }
 core_usecase = { path = "../../core/usecase" }
 lambda_http = "0.14"
-sea-orm = { version = "1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-chrono", "with-uuid"] }
+lambda_runtime = "0.13"
+sea-orm = { version = "1", features = [
+  "sqlx-postgres",
+  "runtime-tokio-rustls",
+  "macros",
+  "with-chrono",
+  "with-uuid",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt"] }

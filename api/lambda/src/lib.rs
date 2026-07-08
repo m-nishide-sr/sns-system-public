@@ -1,17 +1,20 @@
 //! API-LambdaのHTTPハンドラとOpenAPI定義。
 
-use base64::{Engine as _, engine::general_purpose};
+use aws_lambda_events::{
+    apigw::{ApiGatewayV2httpRequest, ApiGatewayV2httpResponse},
+    encodings::Body,
+    http::{HeaderMap, HeaderName},
+};
 use chrono::{DateTime, Utc};
 use core_common::{CoreError, CoreResult, SystemClock};
 use core_infrastructure::SeaOrmMessageRepository;
 use core_usecase::{
     GetTimelineInput, GetTimelineUseCase, PostMessageInput, PostMessageUseCase, TimelineItem,
 };
-use lambda_http::{Body, Error, Request, RequestExt, Response, http::StatusCode};
+use lambda_runtime::{Error, LambdaEvent};
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
-use uuid::Uuid;
 
 /// タイムライン取得レスポンス。
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
@@ -49,12 +52,6 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct JwtClaims {
-    sub: String,
-    email: String,
-}
-
 /// タイムライン取得APIのOpenAPI定義。
 #[utoipa::path(
     get,
@@ -74,7 +71,7 @@ pub fn timeline_endpoint_doc() {}
 /// 投稿APIのOpenAPI定義。
 #[utoipa::path(
     post,
-    path = "/api/v1/messages",
+    path = "/api/v1/message",
     request_body = CreateMessageRequest,
     responses(
         (status = 201, description = "投稿成功", body = CreateMessageResponse),
@@ -98,25 +95,102 @@ pub fn create_message_endpoint_doc() {}
 )]
 pub struct ApiDoc;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Route {
+    GetTimeline,
+    PostMessageNew,
+    MethodNotAllowed,
+    NotFound,
+}
+
+fn route_request(event: &ApiGatewayV2httpRequest) -> Route {
+    let path = event
+        .raw_path
+        .as_deref()
+        .or(event.request_context.http.path.as_deref())
+        .unwrap_or("");
+
+    let method = event.request_context.http.method.as_str();
+
+    match path {
+        "/api/v1/timeline" => {
+            if method == "GET" {
+                Route::GetTimeline
+            } else {
+                Route::MethodNotAllowed
+            }
+        }
+        "/api/v1/message" => {
+            if method == "POST" {
+                Route::PostMessageNew
+            } else {
+                Route::MethodNotAllowed
+            }
+        }
+        _ => Route::NotFound,
+    }
+}
+
 /// Lambdaエントリポイントから呼び出されるHTTPハンドラ。
 pub async fn function_handler(
     db: &DatabaseConnection,
-    request: Request,
-) -> Result<Response<Body>, Error> {
-    let method = request.method().clone();
-    let path = request.uri().path().to_string();
+    event: LambdaEvent<ApiGatewayV2httpRequest>,
+) -> Result<ApiGatewayV2httpResponse, Error> {
+    let (event, _context) = event.into_parts();
+    let route = route_request(&event);
+    let row_log = serde_json::to_string(&event).unwrap_or_else(|_| {
+        tracing::warn!("Failed to serialize API Gateway event for row_log");
+        "{}".to_string()
+    });
 
     let repository = SeaOrmMessageRepository::new(db.clone());
 
-    match (method.as_str(), path.as_str()) {
-        ("GET", "/api/v1/timeline") => {
-            if let Err(error) = extract_auth_info(&request) {
-                return Ok(error_response(error));
+    // authorizer 内の JWT claims から値を取得
+    let auth_info = event.request_context.authorizer.as_ref().and_then(|auth| {
+        // email と cognito_sub (または sub) を取得
+        // (クレートのバージョンによって値が String か serde_json::Value か異なるため、安全に文字列化します)
+        let email = auth.jwt.as_ref()?.claims.get("email").cloned()?;
+        if email.is_empty() {
+            return None;
+        }
+        let cognito_sub = auth.jwt.as_ref()?.claims.get("sub").cloned()?;
+        if cognito_sub.is_empty() {
+            return None;
+        }
+        match uuid::Uuid::parse_str(&cognito_sub) {
+            Ok(cognito_sub) => Some((email, cognito_sub)),
+            Err(err) => {
+                tracing::warn!("Invalid cognito_sub in JWT claims: {}", err);
+                None
             }
-            let before = match parse_before(request.query_string_parameters().first("before")) {
+        }
+    });
+
+    match route {
+        Route::GetTimeline => {
+            // let auth_info = event.request_context.authorizer.as_ref().and_then(|auth| {
+            //     let email = auth.jwt?.claims.email.as_deref()?;
+            //     if email.is_empty() {
+            //         return None;
+            //     }
+            //     let cognito_sub = auth.jwt?.claims.get("cognito_sub").as_deref()?;
+            //     if cognito_sub.is_empty() {
+            //         return None;
+            //     }
+            //     match uuid::Uuid::parse_str(cognito_sub) {
+            //         Ok(cognito_sub) => Some((email, cognito_sub)),
+            //         Err(err) => {
+            //             tracing::warn!("Invalid cognito_sub in JWT claims: {}", err);
+            //             None
+            //         }
+            //     }
+            // });
+
+            let before = match parse_before(event.query_string_parameters.first("before")) {
                 Ok(before) => before,
                 Err(error) => return Ok(error_response(error)),
             };
+
             let usecase = GetTimelineUseCase::new(repository);
             let output = match usecase
                 .execute(GetTimelineInput { before, limit: 50 })
@@ -132,25 +206,53 @@ pub async fn function_handler(
                 .map(TimelineMessageResponse::from)
                 .collect();
 
-            json_response(StatusCode::OK, &response)
+            json_response(200, &response)
         }
-        ("POST", "/api/v1/messages") => {
-            let auth = match extract_auth_info(&request) {
-                Ok(auth) => auth,
-                Err(error) => return Ok(error_response(error)),
+        Route::PostMessageNew => {
+            // let auth_info = event.request_context.authorizer.as_ref().and_then(|auth| {
+            //     let email = auth.jwt?.claims.email.as_deref()?;
+            //     if email.is_empty() {
+            //         return None;
+            //     }
+            //     let cognito_sub = auth.jwt?.claims.cognito_sub.as_deref()?;
+            //     if cognito_sub.is_empty() {
+            //         return None;
+            //     }
+            //     match uuid::Uuid::parse_str(cognito_sub) {
+            //         Ok(cognito_sub) => Some((email, cognito_sub)),
+            //         Err(err) => {
+            //             tracing::warn!("Invalid cognito_sub in JWT claims: {}", err);
+            //             None
+            //         }
+            //     }
+            // });
+            // let auth = match extract_auth_info(&request) {
+            //     Ok(auth) => auth,
+            //     Err(error) => return Ok(error_response(error)),
+            // };
+            // let body = match parse_create_message_request(request.body()) {
+            //     Ok(body) => body,
+            //     Err(error) => return Ok(error_response(error)),
+            // };
+            // let row_log = build_row_log(&auth.user_id);
+            let (email, cognito_sub) = match auth_info {
+                Some((email, cognito_sub)) => (email, cognito_sub),
+                None => {
+                    return json_response(
+                        401,
+                        &ErrorResponse {
+                            message: "Unauthorized".to_string(),
+                        },
+                    );
+                }
             };
-            let body = match parse_create_message_request(request.body()) {
-                Ok(body) => body,
-                Err(error) => return Ok(error_response(error)),
-            };
-            let row_log = build_row_log(&auth.user_id);
 
             let usecase = PostMessageUseCase::new(repository, SystemClock);
             let output = match usecase
                 .execute(PostMessageInput {
-                    user_id: auth.user_id,
-                    user_name: auth.user_name,
-                    body: body.body,
+                    user_id: cognito_sub,
+                    user_name: email.to_string(),
+                    body: event.body.unwrap(),
                     row_log,
                     is_from_user: true,
                 })
@@ -161,7 +263,7 @@ pub async fn function_handler(
             };
 
             json_response(
-                StatusCode::CREATED,
+                201,
                 &CreateMessageResponse {
                     status: output.status,
                     message: output.message,
@@ -169,18 +271,12 @@ pub async fn function_handler(
             )
         }
         _ => json_response(
-            StatusCode::NOT_FOUND,
+            404,
             &ErrorResponse {
                 message: "not found".to_string(),
             },
         ),
     }
-}
-
-#[derive(Debug, Clone)]
-struct AuthInfo {
-    user_id: Uuid,
-    user_name: String,
 }
 
 fn parse_before(before: Option<&str>) -> CoreResult<Option<DateTime<Utc>>> {
@@ -195,88 +291,64 @@ fn parse_before(before: Option<&str>) -> CoreResult<Option<DateTime<Utc>>> {
         .transpose()
 }
 
-fn parse_create_message_request(body: &Body) -> CoreResult<CreateMessageRequest> {
-    let body_str = match body {
-        Body::Text(text) => text.to_string(),
-        Body::Binary(bytes) => String::from_utf8_lossy(bytes).to_string(),
-        Body::Empty => String::new(),
-    };
-
-    serde_json::from_str(&body_str)
-        .map_err(|_| CoreError::Validation("リクエストボディが不正です".to_string()))
-}
-
-fn extract_auth_info(request: &Request) -> CoreResult<AuthInfo> {
-    let authorization = request
-        .headers()
-        .get("authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or(CoreError::Unauthorized)?;
-
-    let token = authorization
-        .strip_prefix("Bearer ")
-        .ok_or(CoreError::Unauthorized)?;
-
-    let payload = token.split('.').nth(1).ok_or(CoreError::Unauthorized)?;
-
-    let decoded = general_purpose::URL_SAFE_NO_PAD
-        .decode(payload)
-        .or_else(|_| general_purpose::URL_SAFE.decode(payload))
-        .map_err(|_| CoreError::Unauthorized)?;
-
-    let claims: JwtClaims =
-        serde_json::from_slice(&decoded).map_err(|_| CoreError::Unauthorized)?;
-    let user_name = claims
-        .email
-        .split('@')
-        .next()
-        .filter(|v| !v.trim().is_empty())
-        .ok_or(CoreError::Unauthorized)?;
-
-    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| CoreError::Unauthorized)?;
-
-    Ok(AuthInfo {
-        user_id,
-        user_name: user_name.to_string(),
-    })
-}
-
-fn build_row_log(user_id: &Uuid) -> String {
-    format!("source=api,user_id={user_id}")
-}
-
-fn json_response<T: Serialize>(status: StatusCode, payload: &T) -> Result<Response<Body>, Error> {
+fn json_response<T: Serialize>(
+    status: i64,
+    payload: &T,
+) -> Result<ApiGatewayV2httpResponse, Error> {
     let body = serde_json::to_string(payload)?;
+    let headers = HeaderMap::from_iter(vec![(
+        HeaderName::from_static("content-type"),
+        "application/json".parse().unwrap(),
+    )]);
 
-    let response = Response::builder()
-        .status(status)
-        .header("content-type", "application/json")
-        .body(Body::Text(body))?;
+    // let response = ApiGatewayV2httpResponse::builder()
+    //     .status(status)
+    //     .header("content-type", "application/json")
+    //     .body(Body::Text(body))?;
 
+    // Ok(ApiGatewayV2httpResponse {
+    //     status_code: status,
+    //     body: Some(Body::Text(body)),
+    //     multi_value_headers: headers,
+    //     is_base64_encoded: false,
+    //     cookies: "".parse().unwrap(),
+    // })
+    let mut response: ApiGatewayV2httpResponse = ApiGatewayV2httpResponse::default();
+    response.body = Some(Body::Text(body));
+    response.status_code = status;
+    response.headers = headers;
     Ok(response)
 }
 
-fn error_response(error: CoreError) -> Response<Body> {
+fn error_response(error: CoreError) -> ApiGatewayV2httpResponse {
     let status = match error {
-        CoreError::Validation(_) => StatusCode::BAD_REQUEST,
-        CoreError::Unauthorized => StatusCode::UNAUTHORIZED,
-        CoreError::Infrastructure(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        CoreError::Validation(_) => 400,
+        CoreError::Unauthorized => 401,
+        CoreError::Infrastructure(_) => 500,
     };
 
-    json_response(
-        status,
-        &ErrorResponse {
-            message: error.to_string(),
-        },
-    )
-    .unwrap_or_else(|_| {
-        Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(Body::Text(
-                r#"{"message":"internal server error"}"#.to_string(),
-            ))
-            .expect("固定レスポンスの生成に失敗しない想定")
-    })
+    // json_response(
+    //     status,
+    //     &ErrorResponse {
+    //         message: error.to_string(),
+    //     },
+    // )
+    // .unwrap_or_else(|_| )
+    // ApiGatewayV2httpResponse {
+    //     status_code: 500,
+    //     body: Some(Body::Text(
+    //         r#"{"message":"internal server error"}"#.to_string(),
+    //     )),
+    //     multi_value_headers: HeaderMap::new(),
+    //     is_base64_encoded: false,
+    //     cookies: "".parse().unwrap(),
+    // }
+    let mut response: ApiGatewayV2httpResponse = ApiGatewayV2httpResponse::default();
+    response.body = Some(Body::Text(
+        r#"{"message":"internal server error"}"#.to_string(),
+    ));
+    response.status_code = status;
+    response
 }
 
 impl From<TimelineItem> for TimelineMessageResponse {
@@ -293,24 +365,4 @@ impl From<TimelineItem> for TimelineMessageResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use http::header::AUTHORIZATION;
-
-    #[test]
-    fn jwtから認証情報を抽出できる() {
-        let payload =
-            r#"{"sub":"12345678-abcd-7a8b-9c0d-1e2f3a4b5c6d","email":"taro@example.com"}"#;
-        let token = format!(
-            "header.{}.signature",
-            general_purpose::URL_SAFE_NO_PAD.encode(payload.as_bytes())
-        );
-
-        let authorization_header = "Bearer ".to_owned() + &token;
-        let request: Request = http::Request::builder()
-            .header(AUTHORIZATION, authorization_header)
-            .body(Body::Empty)
-            .expect("リクエスト生成に失敗しない想定");
-
-        let auth = extract_auth_info(&request).expect("認証情報を抽出できる想定");
-        assert_eq!(auth.user_name, "taro");
-    }
 }

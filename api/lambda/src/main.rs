@@ -1,7 +1,7 @@
 use std::env;
 
 use core_infrastructure::create_db_dsql;
-use lambda_http::{Error, run, service_fn};
+use lambda_runtime::{Error, run, service_fn};
 use sns_system_api_lambda::function_handler;
 
 #[tokio::main(flavor = "current_thread")]
