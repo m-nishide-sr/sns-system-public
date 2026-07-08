@@ -23,7 +23,7 @@
   - /.github/workflows/sns-system-frontend-cicd.yaml ： フロントエンドのCI/CDのGitHub Actions定義
     - jobs
       - validate ： 自動テスト・静的解析を実施する
-      - deploy ： デプロイを実施する
+      - deploy ： ビルド・デプロイを実施する
   - /.github/workflows/sns-system-review-cicd.yaml ： レビュー用資料管理のCI/CDのGitHub Actions定義
     - jobs
       - validate ： 自動テスト・静的解析を実施し、結果を保持する

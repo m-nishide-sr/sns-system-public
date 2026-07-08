@@ -7,4 +7,4 @@
 現在、利用規約ページが一時的なものになっている。releaseブランチへのプルリクエストについては、これが解消されるまで承認をリジェクトする。
 
 - release前に修正対象のファイル
-  - `frontend/README.md`
+  - `docs/frontend.md`
