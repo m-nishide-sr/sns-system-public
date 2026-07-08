@@ -14,7 +14,10 @@ use core_usecase::{
 use lambda_runtime::{Error, LambdaEvent};
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{
+    Modify, OpenApi, ToSchema,
+    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+};
 
 /// タイムライン取得レスポンス。
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
@@ -78,6 +81,9 @@ pub fn timeline_endpoint_doc() {}
         (status = 400, description = "不正なリクエスト", body = ErrorResponse),
         (status = 401, description = "認証エラー", body = ErrorResponse),
         (status = 500, description = "サーバーエラー", body = ErrorResponse)
+    ),
+    security(
+        ("CognitoJwtAuth" = [])
     )
 )]
 pub fn create_message_endpoint_doc() {}
@@ -91,9 +97,34 @@ pub fn create_message_endpoint_doc() {}
         CreateMessageRequest,
         CreateMessageResponse,
         ErrorResponse
-    ))
+    )),
+    security(
+        ("CognitoJwtAuth" = [])
+    ),
+    modifiers(&SecurityAddon)
 )]
 pub struct ApiDoc;
+
+/// `CognitoJwtAuth` の詳細定義を設定する構造体
+pub struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.as_mut().unwrap();
+        components.add_security_scheme(
+            "CognitoJwtAuth",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .description(Some(
+                        "Cognitoから発行されたIDトークンまたはアクセストークンを入力してください",
+                    ))
+                    .build(),
+            ),
+        );
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Route {
@@ -138,6 +169,17 @@ pub async fn function_handler(
 ) -> Result<ApiGatewayV2httpResponse, Error> {
     let (event, _context) = event.into_parts();
     let route = route_request(&event);
+
+    // API Gateway のイベント全体をシリアライズして `row_log` に永続化します。
+    //
+    // # ⚠️ セキュリティに関する注意 (Security Notice)
+    // 本関数は、Authorization ヘッダや Cookie などの機微情報（PII/認証情報）を
+    // マスクせずにそのままシリアライズして保存します。これは一般的なセキュリティベスト
+    // プラクティスに反しますが、**非常時の監査およびトラブルシューティングにおける
+    // リクエストの完全性（Integrity）を担保するため**に意図された仕様です。
+    //
+    // 認証情報等が除外されると、有事の際（不正アクセス調査や認証不良の再現など）に
+    // 厳密な原因究明や証拠保全（フォレンジック）が不可能になるリスクがあります。
     let row_log = serde_json::to_string(&event).unwrap_or_else(|_| {
         tracing::warn!("Failed to serialize API Gateway event for row_log");
         "{}".to_string()
@@ -203,12 +245,24 @@ pub async fn function_handler(
                 }
             };
 
+            let body = match event.body {
+                Some(body) => body,
+                None => {
+                    return json_response(
+                        400,
+                        &ErrorResponse {
+                            message: "Bad Request".to_string(),
+                        },
+                    );
+                }
+            };
+
             let usecase = PostMessageUseCase::new(repository, SystemClock);
             let output = match usecase
                 .execute(PostMessageInput {
                     user_id: cognito_sub,
                     user_name: email.to_string(),
-                    body: event.body.unwrap(),
+                    body,
                     row_log,
                     is_from_user: true,
                 })
@@ -226,10 +280,16 @@ pub async fn function_handler(
                 },
             )
         }
-        _ => json_response(
+        Route::NotFound => json_response(
             404,
             &ErrorResponse {
                 message: "not found".to_string(),
+            },
+        ),
+        Route::MethodNotAllowed => json_response(
+            405,
+            &ErrorResponse {
+                message: "method not allowed".to_string(),
             },
         ),
     }
@@ -265,16 +325,18 @@ fn json_response<T: Serialize>(
 }
 
 fn error_response(error: CoreError) -> ApiGatewayV2httpResponse {
-    let status = match error {
-        CoreError::Validation(_) => 400,
-        CoreError::Unauthorized => 401,
-        CoreError::Infrastructure(_) => 500,
+    let (status, body) = match error {
+        CoreError::Validation(_) => (400, r#"{"message":"Bad Request"}"#.to_string()),
+        CoreError::Unauthorized => (401, r#"{"message":"Unauthorized"}"#.to_string()),
+        CoreError::Infrastructure(_) => (500, r#"{"message":"Internal Server Error"}"#.to_string()),
     };
 
     let mut response: ApiGatewayV2httpResponse = ApiGatewayV2httpResponse::default();
-    response.body = Some(Body::Text(
-        r#"{"message":"internal server error"}"#.to_string(),
-    ));
+    response.body = Some(Body::Text(body));
+    response.headers = HeaderMap::from_iter(vec![(
+        HeaderName::from_static("content-type"),
+        "application/json".parse().unwrap(),
+    )]);
     response.status_code = status;
     response
 }

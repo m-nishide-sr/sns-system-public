@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: sns-system-api-lambda
-  description: ""
+  description: ''
   license:
-    name: ""
+    name: ''
   version: 0.1.0
 paths:
   /api/v1/message:
@@ -15,79 +15,81 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateMessageRequest"
+              $ref: '#/components/schemas/CreateMessageRequest'
         required: true
       responses:
-        "201":
+        '201':
           description: 投稿成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateMessageResponse"
-        "400":
+                $ref: '#/components/schemas/CreateMessageResponse'
+        '400':
           description: 不正なリクエスト
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
           description: 認証エラー
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
           description: サーバーエラー
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - CognitoJwtAuth: []
   /api/v1/timeline:
     get:
       tags: []
       summary: タイムライン取得APIのOpenAPI定義。
       operationId: timeline_endpoint_doc
       parameters:
-        - name: before
-          in: query
-          description: ISO8601形式の境界日時
-          required: false
-          schema:
-            type: string
+      - name: before
+        in: query
+        description: ISO8601形式の境界日時
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: タイムライン取得成功
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/TimelineMessageResponse"
-        "400":
+                  $ref: '#/components/schemas/TimelineMessageResponse'
+        '400':
           description: 不正なリクエスト
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
           description: 認証エラー
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
           description: サーバーエラー
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     CreateMessageRequest:
       type: object
       description: メッセージ投稿リクエスト。
       required:
-        - body
+      - body
       properties:
         body:
           type: string
@@ -96,8 +98,8 @@ components:
       type: object
       description: メッセージ投稿レスポンス。
       required:
-        - status
-        - message
+      - status
+      - message
       properties:
         message:
           type: string
@@ -109,7 +111,7 @@ components:
       type: object
       description: エラーレスポンス。
       required:
-        - message
+      - message
       properties:
         message:
           type: string
@@ -118,10 +120,10 @@ components:
       type: object
       description: タイムライン取得レスポンス。
       required:
-        - user_name
-        - created_at
-        - body
-        - is_from_user
+      - user_name
+      - created_at
+      - body
+      - is_from_user
       properties:
         body:
           type: string
@@ -136,3 +138,11 @@ components:
         user_name:
           type: string
           description: 投稿者名。
+  securitySchemes:
+    CognitoJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognitoから発行されたIDトークンまたはアクセストークンを入力してください
+security:
+- CognitoJwtAuth: []

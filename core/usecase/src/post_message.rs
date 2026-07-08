@@ -58,7 +58,7 @@ impl<R: MessageRepository, C: Clock> PostMessageUseCase<R, C> {
 
         Ok(PostMessageOutput {
             status: "success".to_string(),
-            message: "Message created successfully".to_string(),
+            message: "メッセージを投稿しました".to_string(),
         })
     }
 }
