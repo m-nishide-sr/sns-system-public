@@ -168,24 +168,6 @@ pub async fn function_handler(
 
     match route {
         Route::GetTimeline => {
-            // let auth_info = event.request_context.authorizer.as_ref().and_then(|auth| {
-            //     let email = auth.jwt?.claims.email.as_deref()?;
-            //     if email.is_empty() {
-            //         return None;
-            //     }
-            //     let cognito_sub = auth.jwt?.claims.get("cognito_sub").as_deref()?;
-            //     if cognito_sub.is_empty() {
-            //         return None;
-            //     }
-            //     match uuid::Uuid::parse_str(cognito_sub) {
-            //         Ok(cognito_sub) => Some((email, cognito_sub)),
-            //         Err(err) => {
-            //             tracing::warn!("Invalid cognito_sub in JWT claims: {}", err);
-            //             None
-            //         }
-            //     }
-            // });
-
             let before = match parse_before(event.query_string_parameters.first("before")) {
                 Ok(before) => before,
                 Err(error) => return Ok(error_response(error)),
@@ -209,32 +191,6 @@ pub async fn function_handler(
             json_response(200, &response)
         }
         Route::PostMessageNew => {
-            // let auth_info = event.request_context.authorizer.as_ref().and_then(|auth| {
-            //     let email = auth.jwt?.claims.email.as_deref()?;
-            //     if email.is_empty() {
-            //         return None;
-            //     }
-            //     let cognito_sub = auth.jwt?.claims.cognito_sub.as_deref()?;
-            //     if cognito_sub.is_empty() {
-            //         return None;
-            //     }
-            //     match uuid::Uuid::parse_str(cognito_sub) {
-            //         Ok(cognito_sub) => Some((email, cognito_sub)),
-            //         Err(err) => {
-            //             tracing::warn!("Invalid cognito_sub in JWT claims: {}", err);
-            //             None
-            //         }
-            //     }
-            // });
-            // let auth = match extract_auth_info(&request) {
-            //     Ok(auth) => auth,
-            //     Err(error) => return Ok(error_response(error)),
-            // };
-            // let body = match parse_create_message_request(request.body()) {
-            //     Ok(body) => body,
-            //     Err(error) => return Ok(error_response(error)),
-            // };
-            // let row_log = build_row_log(&auth.user_id);
             let (email, cognito_sub) = match auth_info {
                 Some((email, cognito_sub)) => (email, cognito_sub),
                 None => {
@@ -301,18 +257,6 @@ fn json_response<T: Serialize>(
         "application/json".parse().unwrap(),
     )]);
 
-    // let response = ApiGatewayV2httpResponse::builder()
-    //     .status(status)
-    //     .header("content-type", "application/json")
-    //     .body(Body::Text(body))?;
-
-    // Ok(ApiGatewayV2httpResponse {
-    //     status_code: status,
-    //     body: Some(Body::Text(body)),
-    //     multi_value_headers: headers,
-    //     is_base64_encoded: false,
-    //     cookies: "".parse().unwrap(),
-    // })
     let mut response: ApiGatewayV2httpResponse = ApiGatewayV2httpResponse::default();
     response.body = Some(Body::Text(body));
     response.status_code = status;
@@ -327,22 +271,6 @@ fn error_response(error: CoreError) -> ApiGatewayV2httpResponse {
         CoreError::Infrastructure(_) => 500,
     };
 
-    // json_response(
-    //     status,
-    //     &ErrorResponse {
-    //         message: error.to_string(),
-    //     },
-    // )
-    // .unwrap_or_else(|_| )
-    // ApiGatewayV2httpResponse {
-    //     status_code: 500,
-    //     body: Some(Body::Text(
-    //         r#"{"message":"internal server error"}"#.to_string(),
-    //     )),
-    //     multi_value_headers: HeaderMap::new(),
-    //     is_base64_encoded: false,
-    //     cookies: "".parse().unwrap(),
-    // }
     let mut response: ApiGatewayV2httpResponse = ApiGatewayV2httpResponse::default();
     response.body = Some(Body::Text(
         r#"{"message":"internal server error"}"#.to_string(),

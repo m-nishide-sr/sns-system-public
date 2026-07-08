@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: SNSシステム API
 
@@ -29,7 +29,8 @@ Resources:
       MemorySize: 128
       Environment:
         Variables:
-          DSQL_ENDPOINT: !ImportValue !Sub sns-db-${Stage}-DSQLEndpoint
+          DSQL_ENDPOINT:
+            Fn::ImportValue: !Sub sns-db-${Stage}-DSQLEndpoint
       Events:
         ApiEvent:
           Type: HttpApi
