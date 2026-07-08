@@ -361,8 +361,3 @@ impl From<TimelineItem> for TimelineMessageResponse {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}
