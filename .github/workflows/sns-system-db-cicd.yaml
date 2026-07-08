@@ -1,17 +1,25 @@
 name: SNSシステム DB CI/CD
 
 on:
+  workflow_run:
+    workflows: ["SNSシステム 認証基盤 CI/CD"]
+    types:
+      - completed
   push:
     branches:
       - develop
       - release
     paths:
-      - 'db/**'
-      - '.github/workflows/sns-system-db-cicd.yaml'
+      - "db/**"
+      - ".github/workflows/sns-system-db-cicd.yaml"
   pull_request:
     paths:
-      - 'db/**'
-      - '.github/workflows/sns-system-db-cicd.yaml'
+      - "db/**"
+      - ".github/workflows/sns-system-db-cicd.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -84,7 +92,10 @@ jobs:
   migrate:
     name: マイグレーション
     needs: validate
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    if: >-
+      github.event_name == 'push' &&
+      github.actor != 'github-actions[bot]' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
     permissions:
       id-token: write

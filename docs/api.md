@@ -63,7 +63,7 @@
 新しいメッセージをタイムラインに投稿します。
 
 * メソッド：POST
-* パス：/api/v1/messages
+* パス：/api/v1/message
 * 認証：必須（Authorization: Bearer <JWT>）
 * 内部処理（DB）：
   * 挿入先：public.messages テーブル

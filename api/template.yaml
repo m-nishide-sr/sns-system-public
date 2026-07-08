@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム API
+
+Parameters:
+  Stage:
+    Type: String
+    Default: develop
+    AllowedValues:
+      - develop
+      - release
+  SubSystem:
+    Type: String
+    Default: api
+    AllowedValues:
+      - api
+
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub sns-${SubSystem}-${Stage}-api
+      CodeUri: ./lambda
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - arm64
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          DSQL_ENDPOINT:
+            Fn::ImportValue: !Sub sns-db-${Stage}-DSQLEndpoint
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: rust-cargolambda

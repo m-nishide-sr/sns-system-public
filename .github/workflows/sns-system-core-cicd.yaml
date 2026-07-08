@@ -1,0 +1,100 @@
+name: SNSシステム Core CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - ".github/workflows/sns-system-core-cicd.yaml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - ".github/workflows/sns-system-core-cicd.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: cargo fmt -- --check の実行
+        working-directory: core
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: core
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: PostgreSQLの起動
+        run: |
+          docker run --rm --name testdb-postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_DB=postgres \
+            -p 5432:5432 \
+            -d postgres:16
+          until docker exec testdb-postgres pg_isready -U postgres -d postgres; do
+            sleep 1
+          done
+
+      - name: Liquibaseでローカルマイグレーション
+        run: |
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}:/workspace" \
+            liquibase/liquibase:4.33.0 \
+            --search-path=/workspace \
+            update \
+            --changelog-file=db/liquibase/changelog.xml \
+            --context-filter=local \
+            --url=jdbc:postgresql://localhost:5432/postgres \
+            --username=postgres \
+            --password=postgres \
+            -DStage=local \
+            -DAWS_ACCOUNT_ID=123456789012
+
+      - name: cargo test の実行
+        working-directory: core
+        run: cargo test --all-features -- --include-ignored
+
+      - name: cargo fmt -- --check の実行
+        working-directory: api/lambda
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: api/lambda
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test の実行
+        working-directory: api/lambda
+        run: cargo test --all-features -- --include-ignored
+
+      - name: cargo fmt -- --check の実行
+        working-directory: db/sea_orm_entities
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: db/sea_orm_entities
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test の実行
+        working-directory: db/sea_orm_entities
+        run: cargo test --all-features -- --include-ignored
