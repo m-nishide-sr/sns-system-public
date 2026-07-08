@@ -221,7 +221,7 @@ mod tests {
 
         assert_eq!(
             response[0].created_at,
-            third_created_at
+            (now + chrono::Duration::seconds(2))
                 .format("%Y-%m-%dT%H:%M:%S.%6fZ")
                 .to_string()
                 .parse::<DateTime<Utc>>()
@@ -229,7 +229,7 @@ mod tests {
         );
         assert_eq!(
             response[1].created_at,
-            second_created_at
+            (now + chrono::Duration::seconds(1))
                 .format("%Y-%m-%dT%H:%M:%S.%6fZ")
                 .to_string()
                 .parse::<DateTime<Utc>>()
