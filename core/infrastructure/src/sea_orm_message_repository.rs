@@ -154,14 +154,15 @@ mod tests {
         let db = create_db_postgres().await.unwrap();
         let cognito_id = uuid::Uuid::now_v7();
         let repository = SeaOrmMessageRepository::new(db.clone());
+        let now = chrono::Utc::now().fixed_offset();
 
-        let first_uuid = uuid::Uuid::now_v7();
+        let first_uuid = uuid::Uuid::new_v4();
         let email = format!("local-get-{}@example.com", first_uuid);
         messages::ActiveModel {
             id: Set(first_uuid),
             cognito_id: Set(cognito_id),
             user_name: Set(email.clone()),
-            created_at: Set(chrono::Utc::now().fixed_offset()),
+            created_at: Set(now),
             body: Set("older body".to_string()),
             row_log: Set("older row log".to_string()),
             is_from_user: Set(true),
@@ -170,14 +171,13 @@ mod tests {
         .await
         .expect("older test message insert should succeed");
 
-        let second_uuid = uuid::Uuid::now_v7();
-        let second_created_at = chrono::Utc::now().fixed_offset();
+        let second_uuid = uuid::Uuid::new_v4();
         let second_email = format!("local-get-{}@example.com", second_uuid);
         messages::ActiveModel {
             id: Set(second_uuid),
             cognito_id: Set(cognito_id),
             user_name: Set(second_email.clone()),
-            created_at: Set(second_created_at),
+            created_at: Set(now + chrono::Duration::seconds(1)),
             body: Set("second body".to_string()),
             row_log: Set("second row log".to_string()),
             is_from_user: Set(false),
@@ -186,14 +186,13 @@ mod tests {
         .await
         .expect("newer test message insert should succeed");
 
-        let third_uuid = uuid::Uuid::now_v7();
-        let third_created_at = chrono::Utc::now().fixed_offset();
+        let third_uuid = uuid::Uuid::new_v4();
         let third_email = format!("local-get-{}@example.com", third_uuid);
         messages::ActiveModel {
             id: Set(third_uuid),
             cognito_id: Set(cognito_id),
             user_name: Set(third_email.clone()),
-            created_at: Set(third_created_at),
+            created_at: Set(now + chrono::Duration::seconds(2)),
             body: Set("third body".to_string()),
             row_log: Set("third row log".to_string()),
             is_from_user: Set(true),

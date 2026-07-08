@@ -32,6 +32,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ## Dockerのセットアップ手順
 
 ```bash
-curl -fsSL https://get.docker.com | sh
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo usermod -aG docker $USER
 ```
+もしくは<https://docs.docker.com/engine/install/ubuntu/>を参照。
