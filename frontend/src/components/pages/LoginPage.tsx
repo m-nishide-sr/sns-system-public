@@ -54,7 +54,8 @@ type LoginPageViewProps = {
   onNavigate: (route: AppRoute) => void;
 };
 
-const ALLOW_DOMAIN_NOTE = "新規登録は管理者が許可したメールドメイン（secrets.ALLOW_DOMAIN）に限られます。";
+const ALLOW_DOMAIN_NOTE =
+  "新規登録は管理者が許可したメールドメインに限られます。";
 
 export function LoginPageView({
   activeTab,
@@ -84,7 +85,9 @@ export function LoginPageView({
   return (
     <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[0.9fr_1.1fr]">
       <section className="rounded-[2rem] border border-slate-200 bg-slate-900 p-8 text-white shadow-2xl shadow-slate-900/15">
-        <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-blue-100">認証</span>
+        <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-blue-100">
+          認証
+        </span>
         <h1 className="mt-4 text-3xl font-bold">ログイン / 新規登録</h1>
         <p className="mt-4 text-sm leading-7 text-slate-200">
           Cognitoを利用してログイン、新規登録、メール確認、パスワード再設定を行えます。確認コードはメールで送信されます。
@@ -92,14 +95,24 @@ export function LoginPageView({
         <div className="mt-6 rounded-3xl bg-white/10 p-5 text-sm leading-7 text-slate-100">
           <p className="font-semibold text-white">登録時の注意</p>
           <p className="mt-2">{ALLOW_DOMAIN_NOTE}</p>
-          <p className="mt-2">登録直後または未確認状態のアカウントでは、確認コードの入力が必要です。</p>
+          <p className="mt-2">
+            登録直後または未確認状態のアカウントでは、確認コードの入力が必要です。
+          </p>
         </div>
         <div className="mt-6 space-y-3 text-sm text-slate-200">
-          <button className="block font-semibold text-white underline-offset-4 hover:underline" onClick={() => onNavigate("/terms")} type="button">
+          <button
+            className="block font-semibold text-white underline-offset-4 hover:underline"
+            onClick={() => onNavigate("/terms")}
+            type="button"
+          >
             利用規約を確認する
           </button>
           {isAuthenticated ? (
-            <button className="block font-semibold text-white underline-offset-4 hover:underline" onClick={() => onNavigate("/chat")} type="button">
+            <button
+              className="block font-semibold text-white underline-offset-4 hover:underline"
+              onClick={() => onNavigate("/chat")}
+              type="button"
+            >
               ログイン済みのためチャットへ移動する
             </button>
           ) : null}
@@ -127,20 +140,28 @@ export function LoginPageView({
             {activeTab === "login" ? (
               <div className="mt-6 space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">メールアドレス</span>
+                  <span className="mb-2 block text-sm font-medium text-slate-700">
+                    メールアドレス
+                  </span>
                   <input
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                    onChange={(event) => onChangeField("loginEmail", event.target.value)}
+                    onChange={(event) =>
+                      onChangeField("loginEmail", event.target.value)
+                    }
                     placeholder="you@example.com"
                     type="email"
                     value={loginEmail}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">パスワード</span>
+                  <span className="mb-2 block text-sm font-medium text-slate-700">
+                    パスワード
+                  </span>
                   <input
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                    onChange={(event) => onChangeField("loginPassword", event.target.value)}
+                    onChange={(event) =>
+                      onChangeField("loginPassword", event.target.value)
+                    }
                     type="password"
                     value={loginPassword}
                   />
@@ -154,7 +175,11 @@ export function LoginPageView({
                   >
                     {isBusy ? "処理中..." : "ログイン"}
                   </button>
-                  <button className="text-sm font-semibold text-blue-700 underline-offset-4 hover:underline" onClick={onStartReset} type="button">
+                  <button
+                    className="text-sm font-semibold text-blue-700 underline-offset-4 hover:underline"
+                    onClick={onStartReset}
+                    type="button"
+                  >
                     パスワードを忘れた場合
                   </button>
                 </div>
@@ -162,25 +187,35 @@ export function LoginPageView({
             ) : (
               <div className="mt-6 space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">メールアドレス</span>
+                  <span className="mb-2 block text-sm font-medium text-slate-700">
+                    メールアドレス
+                  </span>
                   <input
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                    onChange={(event) => onChangeField("registerEmail", event.target.value)}
+                    onChange={(event) =>
+                      onChangeField("registerEmail", event.target.value)
+                    }
                     placeholder="allowed-domain@example.com"
                     type="email"
                     value={registerEmail}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">パスワード</span>
+                  <span className="mb-2 block text-sm font-medium text-slate-700">
+                    パスワード
+                  </span>
                   <input
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                    onChange={(event) => onChangeField("registerPassword", event.target.value)}
+                    onChange={(event) =>
+                      onChangeField("registerPassword", event.target.value)
+                    }
                     type="password"
                     value={registerPassword}
                   />
                 </label>
-                <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">{ALLOW_DOMAIN_NOTE}</p>
+                <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  {ALLOW_DOMAIN_NOTE}
+                </p>
                 <button
                   className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={isBusy}
@@ -197,16 +232,23 @@ export function LoginPageView({
         {flowStep === "confirm-signup" ? (
           <div className="space-y-5">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">確認コードの入力</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                確認コードの入力
+              </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                {confirmationEmail || "対象メールアドレス"} に届いた確認コードを入力してください。
+                {confirmationEmail || "対象メールアドレス"}{" "}
+                に届いた確認コードを入力してください。
               </p>
             </div>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">確認コード</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                確認コード
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                onChange={(event) => onChangeField("confirmCode", event.target.value)}
+                onChange={(event) =>
+                  onChangeField("confirmCode", event.target.value)
+                }
                 value={confirmCode}
               />
             </label>
@@ -219,7 +261,11 @@ export function LoginPageView({
               >
                 {isBusy ? "確認中..." : "確認して続行"}
               </button>
-              <button className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700" onClick={onBackToAuth} type="button">
+              <button
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+                onClick={onBackToAuth}
+                type="button"
+              >
                 戻る
               </button>
             </div>
@@ -229,14 +275,22 @@ export function LoginPageView({
         {flowStep === "request-reset" ? (
           <div className="space-y-5">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">パスワード再設定</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">登録済みメールアドレスへ確認コードを送信します。</p>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                パスワード再設定
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                登録済みメールアドレスへ確認コードを送信します。
+              </p>
             </div>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">メールアドレス</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                メールアドレス
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                onChange={(event) => onChangeField("resetEmail", event.target.value)}
+                onChange={(event) =>
+                  onChangeField("resetEmail", event.target.value)
+                }
                 type="email"
                 value={resetEmail}
               />
@@ -250,7 +304,11 @@ export function LoginPageView({
               >
                 {isBusy ? "送信中..." : "確認コードを送信"}
               </button>
-              <button className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700" onClick={onBackToAuth} type="button">
+              <button
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+                onClick={onBackToAuth}
+                type="button"
+              >
                 ログインへ戻る
               </button>
             </div>
@@ -260,22 +318,34 @@ export function LoginPageView({
         {flowStep === "confirm-reset" ? (
           <div className="space-y-5">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">新しいパスワードを設定</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">メールで受け取った確認コードと新しいパスワードを入力してください。</p>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                新しいパスワードを設定
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                メールで受け取った確認コードと新しいパスワードを入力してください。
+              </p>
             </div>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">確認コード</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                確認コード
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                onChange={(event) => onChangeField("resetCode", event.target.value)}
+                onChange={(event) =>
+                  onChangeField("resetCode", event.target.value)
+                }
                 value={resetCode}
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">新しいパスワード</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                新しいパスワード
+              </span>
               <input
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-                onChange={(event) => onChangeField("resetNewPassword", event.target.value)}
+                onChange={(event) =>
+                  onChangeField("resetNewPassword", event.target.value)
+                }
                 type="password"
                 value={resetNewPassword}
               />
@@ -289,7 +359,11 @@ export function LoginPageView({
               >
                 {isBusy ? "更新中..." : "パスワードを更新"}
               </button>
-              <button className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700" onClick={onBackToAuth} type="button">
+              <button
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+                onClick={onBackToAuth}
+                type="button"
+              >
                 ログインへ戻る
               </button>
             </div>
@@ -300,7 +374,12 @@ export function LoginPageView({
   );
 }
 
-export function LoginPage({ isAuthenticated, onAuthSuccess, onNavigate, onToast }: LoginPageProps) {
+export function LoginPage({
+  isAuthenticated,
+  onAuthSuccess,
+  onNavigate,
+  onToast,
+}: LoginPageProps) {
   const [activeTab, setActiveTab] = useState<AuthTab>("login");
   const [flowStep, setFlowStep] = useState<FlowStep>("auth");
   const [isBusy, setIsBusy] = useState(false);
@@ -325,7 +404,8 @@ export function LoginPage({ isAuthenticated, onAuthSuccess, onNavigate, onToast 
     try {
       await callback();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "認証処理に失敗しました。";
+      const message =
+        error instanceof Error ? error.message : "認証処理に失敗しました。";
       onToast(message, "error");
     } finally {
       setIsBusy(false);
@@ -342,102 +422,128 @@ export function LoginPage({ isAuthenticated, onAuthSuccess, onNavigate, onToast 
   };
 
   const handleStartReset = () => {
-    setFields((current) => ({ ...current, resetEmail: current.resetEmail || current.loginEmail }));
+    setFields((current) => ({
+      ...current,
+      resetEmail: current.resetEmail || current.loginEmail,
+    }));
     setFlowStep("request-reset");
   };
 
-  const handleLogin = () => void setBusy(async () => {
-    const username = fields.loginEmail.trim();
-    const password = fields.loginPassword;
-    if (!username || !password) {
-      throw new Error("メールアドレスとパスワードを入力してください。");
-    }
+  const handleLogin = () =>
+    void setBusy(async () => {
+      const username = fields.loginEmail.trim();
+      const password = fields.loginPassword;
+      if (!username || !password) {
+        throw new Error("メールアドレスとパスワードを入力してください。");
+      }
 
-    const result = await signIn({ username, password });
-    if (result.nextStep.signInStep === "CONFIRM_SIGN_UP") {
-      setConfirmationEmail(username);
-      setFlowStep("confirm-signup");
-      onToast("メール確認が必要です。確認コードを入力してください。", "success");
-      return;
-    }
+      const result = await signIn({ username, password });
+      if (result.nextStep.signInStep === "CONFIRM_SIGN_UP") {
+        setConfirmationEmail(username);
+        setFlowStep("confirm-signup");
+        onToast(
+          "メール確認が必要です。確認コードを入力してください。",
+          "success",
+        );
+        return;
+      }
 
-    onToast("ログインしました。", "success");
-    await onAuthSuccess();
-  });
-
-  const handleRegister = () => void setBusy(async () => {
-    const email = fields.registerEmail.trim();
-    const password = fields.registerPassword;
-    if (!email || !password) {
-      throw new Error("メールアドレスとパスワードを入力してください。");
-    }
-
-    const result = await signUp({
-      username: email,
-      password,
-      options: {
-        userAttributes: {
-          email,
-        },
-      },
+      onToast("ログインしました。", "success");
+      await onAuthSuccess();
     });
 
-    setConfirmationEmail(email);
-    if (result.nextStep.signUpStep === "DONE") {
-      onToast("登録が完了しました。ログインしてください。", "success");
+  const handleRegister = () =>
+    void setBusy(async () => {
+      const email = fields.registerEmail.trim();
+      const password = fields.registerPassword;
+      if (!email || !password) {
+        throw new Error("メールアドレスとパスワードを入力してください。");
+      }
+
+      const result = await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email,
+          },
+        },
+      });
+
+      setConfirmationEmail(email);
+      if (result.nextStep.signUpStep === "DONE") {
+        onToast("登録が完了しました。ログインしてください。", "success");
+        setActiveTab("login");
+        return;
+      }
+
+      setFlowStep("confirm-signup");
+      onToast(
+        "確認コードを送信しました。メールを確認してください。",
+        "success",
+      );
+    });
+
+  const handleConfirmSignUp = () =>
+    void setBusy(async () => {
+      const username = confirmationTarget.trim();
+      const confirmationCode = fields.confirmCode.trim();
+      if (!username || !confirmationCode) {
+        throw new Error("メールアドレスと確認コードを入力してください。");
+      }
+
+      await confirmSignUp({ username, confirmationCode });
+      setFlowStep("auth");
       setActiveTab("login");
-      return;
-    }
+      setFields((current) => ({
+        ...current,
+        confirmCode: "",
+        loginEmail: username,
+      }));
+      onToast("メール確認が完了しました。ログインしてください。", "success");
+    });
 
-    setFlowStep("confirm-signup");
-    onToast("確認コードを送信しました。メールを確認してください。", "success");
-  });
+  const handleRequestReset = () =>
+    void setBusy(async () => {
+      const username = fields.resetEmail.trim();
+      if (!username) {
+        throw new Error("メールアドレスを入力してください。");
+      }
 
-  const handleConfirmSignUp = () => void setBusy(async () => {
-    const username = confirmationTarget.trim();
-    const confirmationCode = fields.confirmCode.trim();
-    if (!username || !confirmationCode) {
-      throw new Error("メールアドレスと確認コードを入力してください。");
-    }
+      await resetPassword({ username });
+      setFlowStep("confirm-reset");
+      onToast(
+        "確認コードを送信しました。メールを確認してください。",
+        "success",
+      );
+    });
 
-    await confirmSignUp({ username, confirmationCode });
-    setFlowStep("auth");
-    setActiveTab("login");
-    setFields((current) => ({ ...current, confirmCode: "", loginEmail: username }));
-    onToast("メール確認が完了しました。ログインしてください。", "success");
-  });
+  const handleConfirmReset = () =>
+    void setBusy(async () => {
+      const username = fields.resetEmail.trim();
+      const confirmationCode = fields.resetCode.trim();
+      const newPassword = fields.resetNewPassword;
+      if (!username || !confirmationCode || !newPassword) {
+        throw new Error(
+          "メールアドレス、確認コード、新しいパスワードを入力してください。",
+        );
+      }
 
-  const handleRequestReset = () => void setBusy(async () => {
-    const username = fields.resetEmail.trim();
-    if (!username) {
-      throw new Error("メールアドレスを入力してください。");
-    }
-
-    await resetPassword({ username });
-    setFlowStep("confirm-reset");
-    onToast("確認コードを送信しました。メールを確認してください。", "success");
-  });
-
-  const handleConfirmReset = () => void setBusy(async () => {
-    const username = fields.resetEmail.trim();
-    const confirmationCode = fields.resetCode.trim();
-    const newPassword = fields.resetNewPassword;
-    if (!username || !confirmationCode || !newPassword) {
-      throw new Error("メールアドレス、確認コード、新しいパスワードを入力してください。");
-    }
-
-    await confirmResetPassword({ username, confirmationCode, newPassword });
-    setFlowStep("auth");
-    setActiveTab("login");
-    setFields((current) => ({
-      ...current,
-      loginEmail: username,
-      loginPassword: "",
-      resetCode: "",
-      resetNewPassword: "",
-    }));
-    onToast("パスワードを更新しました。新しいパスワードでログインしてください。", "success");
-  });
+      await confirmResetPassword({ username, confirmationCode, newPassword });
+      setFlowStep("auth");
+      setActiveTab("login");
+      setFields((current) => ({
+        ...current,
+        loginEmail: username,
+        loginPassword: "",
+        resetCode: "",
+        resetNewPassword: "",
+      }));
+      onToast(
+        "パスワードを更新しました。新しいパスワードでログインしてください。",
+        "success",
+      );
+    });
 
   return (
     <LoginPageView

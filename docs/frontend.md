@@ -48,7 +48,7 @@
           - "body": テキストエリアの文字列
   - 認証部
       - 認証は`aws-amplify`を使用して実装する。
-      - `aws-amplify`の設定は`Amplify.configure`で設定する。AuthのCognitoの`region`、`userPoolId`、および`userPoolWebClientId`はCI/CDのビルド時に環境変数の値をセットする。この環境変数はCI/CDでAWS SAMの`aws cloudformation describe-stacks`で取得したもの。
+      - `aws-amplify`の設定は`Amplify.configure`で設定する。AuthのCognitoの`userPoolId`、および`userPoolClientId`はCI/CDのビルド時に環境変数の値をセットする。この環境変数はCI/CDでAWS SAMの`aws cloudformation describe-stacks`で取得したもの。
   - ページ構成
     - トップページ：適当な説明文を表示する。ログインページへのリンクはわかりやすい場所に配置する。
     - マイページ：パスワード変更や退会、ログアウトなどができる。退会は`aws-amplify/auth`の`deleteUser`をコールするだけで、チャットデータの削除などは実施しない。
@@ -56,7 +56,7 @@
       - 投稿部：テキストエリアと投稿ボタン。文字数チェックはしない。投稿ボタンでチャット投稿クエリを実行する。
       - 更新ボタン：チャット取得クエリを実行する。
     - ログインページ兼新規登録ページ
-      - 新規登録ページでは、メールアドレスは"secrets.ALLOW_DOMAIN"しか登録できないことを明記し、実際にCognitoの`PreSignUp`ではメールアドレスのドメイン部を検証する。
+      - 新規登録ページでは、メールアドレスは管理者が許可したドメインのものしか登録できない旨を明記し、実際にCognitoの`PreSignUp`ではメールアドレスのドメイン部を検証する。
       - 新規登録後、および、ログイン時メールアドレス未承認ステータスの場合に、メールに届くMFAコードを入力するインターフェースを表示する。
       - パスワードを忘れた時にパスワードをリセットするインターフェースを用意する。
     - 利用規約ページ：(**TODO:あとで修正するので、取り急ぎ無難な内容をtsx上にべた書きしておいて下さい。**)
