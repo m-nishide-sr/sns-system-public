@@ -10,11 +10,7 @@
     "api/lambda/Cargo.toml",
     "db/sea_orm_entities/Cargo.toml",
     "auth/PreSignUpFunction/Cargo.toml",
-    "core/Cargo.toml",
-    "core/common/Cargo.toml",
-    "core/domain/Cargo.toml",
-    "core/infrastructure/Cargo.toml",
-    "core/usecase/Cargo.toml"
+    "core/Cargo.toml"
   ],
   "rust-analyzer.server.extraEnv": {
     "PATH": "/home/codespace/.cargo/bin:/usr/bin:/bin"
@@ -26,6 +22,12 @@
   // Markdown用の設定ファイル用
   "[markdown]": {
     "editor.defaultFormatter": "vscode.markdown-language-features"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
   },
   "editor.formatOnSave": true
 }

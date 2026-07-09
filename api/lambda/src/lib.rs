@@ -207,6 +207,14 @@ pub async fn function_handler(
             }
         }
     });
+    if auth_info.is_none() {
+        return json_response(
+            401,
+            &ErrorResponse {
+                message: "Unauthorized".to_string(),
+            },
+        );
+    }
 
     match route {
         Route::GetTimeline => {
@@ -245,7 +253,7 @@ pub async fn function_handler(
                 }
             };
 
-            let body = match event.body {
+            let raw_body = match event.body {
                 Some(body) => body,
                 None => {
                     return json_response(
@@ -257,12 +265,33 @@ pub async fn function_handler(
                 }
             };
 
+            let request: CreateMessageRequest = match serde_json::from_str(&raw_body) {
+                Ok(value) => value,
+                Err(_) => {
+                    return json_response(
+                        400,
+                        &ErrorResponse {
+                            message: "Bad Request".to_string(),
+                        },
+                    );
+                }
+            };
+            let Some(name) = email.split('@').next() else {
+                return json_response(
+                    400,
+                    &ErrorResponse {
+                        message: "Bad Authorized Email Address".to_string(),
+                    },
+                );
+            };
+            let user_name = name.to_string();
+
             let usecase = PostMessageUseCase::new(repository, SystemClock);
             let output = match usecase
                 .execute(PostMessageInput {
                     user_id: cognito_sub,
-                    user_name: email.to_string(),
-                    body,
+                    user_name,
+                    body: request.body,
                     row_log,
                     is_from_user: true,
                 })
