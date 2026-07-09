@@ -13,5 +13,3 @@
 - **デプロイ失敗時のGitHub Deployment Statusの未処理**: deployジョブでS3アップロードやSAMデプロイが失敗した場合、GitHub Deploymentのステータスが `in_progress` のまま残る。`if: always()` を使ったfailureステータスへの更新を追加することを検討する。
 
 - **Storybookビルドの環境変数依存**: `npm run build-storybook` が特定の環境変数（Cognito設定等）を必要とする場合、CI上で失敗する可能性がある。必要に応じてモック設定やビルド時の環境変数設定を追加する。
-
-- **古いレビュー資料のS3への蓄積**: PRごとにコミットIDのディレクトリをS3に作成するため、古いレビュー資料が削除されずに蓄積し続ける。ライフサイクルポリシーやS3 Object Expirationの設定を検討する。

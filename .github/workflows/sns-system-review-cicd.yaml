@@ -133,7 +133,7 @@ jobs:
         run: |
           mkdir -p review-output/rapidoc
           cp api/openapi.yaml review-output/rapidoc/
-          echo '<!doctype html><meta charset="utf-8"><script src="https://unpkg.com/amazon-cognito-identity-js/dist/amazon-cognito-identity.min.js"></script><script src="https://unpkg.com/rapidoc@latest/dist/rapidoc-min.js"></script><body><rapi-doc style="visibility: visible" id="doc" spec-url="./openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header" api-key-value="eyJ..."></rapi-doc></body></html>' > review-output/rapidoc/index.html
+          echo '<!doctype html><meta charset="utf-8"><script src="https://unpkg.com/amazon-cognito-identity-js/dist/amazon-cognito-identity.min.js"></script><script src="https://unpkg.com/rapidoc@latest/dist/rapidoc-min.js"></script><body><rapi-doc style="visibility: visible" id="doc" spec-url="./openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header"></rapi-doc></body></html>' > review-output/rapidoc/index.html
 
       - name: アーティファクトのアップロード
         uses: actions/upload-artifact@v4
@@ -204,18 +204,18 @@ jobs:
             --output text)
           echo "cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
-          # frontendは未デプロイのため、デプロイ後にコメントアウトを外す
-          # FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
-          #   --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
-          #   --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
-          #   --output text)
-          echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+      #     frontendは未デプロイのため、デプロイ後にコメントアウトを外す
+      #     FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
+      #       --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+      #       --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
+      #       --output text)
+      #     echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
-      - name: APIの修正
-        run: |
-          echo "" >> review-output/openapi.yaml
-          echo "servers:" >> review-output/openapi.yaml
-          echo "- url: https://${{ steps.info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
+      # - name: APIの修正
+      #   run: |
+      #     echo "" >> review-output/openapi.yaml
+      #     echo "servers:" >> review-output/openapi.yaml
+      #     echo "- url: https://${{ steps.info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
 
       - name: GitHub Deploymentの作成
         id: deployment
@@ -240,6 +240,7 @@ jobs:
             s3://${{ steps.info.outputs.bucket_name }}/${{ steps.info.outputs.commit_id }}/
 
       - name: GitHub Deployment Statusの更新
+        if: success()
         uses: actions/github-script@v7
         with:
           script: |
@@ -251,3 +252,15 @@ jobs:
               environment_url: 'https://${{ steps.info.outputs.cloudfront_domain }}/${{ steps.info.outputs.commit_id }}/index.html',
               description: 'レビュー資料の公開完了'
             });
+
+      - name: Mark deployment failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'failure'
+            })
