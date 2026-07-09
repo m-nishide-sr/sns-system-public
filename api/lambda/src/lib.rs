@@ -3,7 +3,7 @@
 use aws_lambda_events::{
     apigw::{ApiGatewayV2httpRequest, ApiGatewayV2httpResponse},
     encodings::Body,
-    http::{HeaderMap, HeaderName},
+    http::{HeaderMap, HeaderName, HeaderValue},
 };
 use chrono::{DateTime, Utc};
 use core_common::{CoreError, CoreResult, SystemClock};
@@ -162,6 +162,28 @@ fn route_request(event: &ApiGatewayV2httpRequest) -> Route {
     }
 }
 
+/// API Gateway イベントから機微情報をマスクしたJSON文字列を生成する
+fn serde_to_sanitized_log_string(event: &ApiGatewayV2httpRequest) -> String {
+    // 1. ログ出力用にイベントをクローン
+    let mut sanitized_event = event.clone();
+
+    // 2. マスク対象のヘッダを定義
+    let sensitive_keys = ["authorization", "cookie", "set-cookie", "x-api-key"];
+
+    // 3. ヘッダのマスク処理
+    for (key, value) in sanitized_event.headers.iter_mut() {
+        if sensitive_keys.contains(&key.as_str()) {
+            *value = HeaderValue::from_static("[MASKED]");
+        }
+    }
+
+    // 4. シリアライズ
+    serde_json::to_string(&sanitized_event).unwrap_or_else(|_| {
+        tracing::warn!("Failed to serialize API Gateway event for row_log");
+        "{}".to_string()
+    })
+}
+
 /// Lambdaエントリポイントから呼び出されるHTTPハンドラ。
 pub async fn function_handler(
     db: &DatabaseConnection,
@@ -170,20 +192,8 @@ pub async fn function_handler(
     let (event, _context) = event.into_parts();
     let route = route_request(&event);
 
-    // API Gateway のイベント全体をシリアライズして `row_log` に永続化します。
-    //
-    // # ⚠️ セキュリティに関する注意 (Security Notice)
-    // 本関数は、Authorization ヘッダや Cookie などの機微情報（PII/認証情報）を
-    // マスクせずにそのままシリアライズして保存します。これは一般的なセキュリティベスト
-    // プラクティスに反しますが、**非常時の監査およびトラブルシューティングにおける
-    // リクエストの完全性（Integrity）を担保するため**に意図された仕様です。
-    //
-    // 認証情報等が除外されると、有事の際（不正アクセス調査や認証不良の再現など）に
-    // 厳密な原因究明や証拠保全（フォレンジック）が不可能になるリスクがあります。
-    let row_log = serde_json::to_string(&event).unwrap_or_else(|_| {
-        tracing::warn!("Failed to serialize API Gateway event for row_log");
-        "{}".to_string()
-    });
+    // API Gateway のイベントオブジェクトから機微情報をマスクしたJSON文字列を生成して `row_log` に永続化します。
+    let row_log = serde_to_sanitized_log_string(&event);
 
     let repository = SeaOrmMessageRepository::new(db.clone());
 
