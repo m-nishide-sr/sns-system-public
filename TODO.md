@@ -4,3 +4,5 @@
 
 各サブプロジェクトのTODO項目については、各ディレクトリのルートの`TODO.md`ファイルにリストアップする。
 - [ ] APIのJWT検証ロジックは現在ペイロード抽出のみのため、本番導入前に署名検証を追加する。
+- [ ] フロントエンドで登録可能ドメインをUI上に正確に表示するには、`secrets.ALLOW_DOMAIN` を公開用のビルド時環境変数として受け渡す設計を追加する必要がある。
+- [ ] フロントエンド仕様では `NEXT_PUBLIC_AWS_REGION` をビルド時に渡す前提だが、`aws-amplify` v6 の現行 `Amplify.configure` 実装では `userPoolId` と `userPoolClientId` を利用しており、リージョン値の利用方針を明文化したい。
