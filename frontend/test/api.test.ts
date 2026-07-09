@@ -5,15 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-// ApiError を再現する（importが困難なためインライン定義）
-class ApiError extends Error {
-  status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-  }
-}
+import { ApiError } from "../src/lib/api.ts";
 
 test("ApiError はエラーメッセージとステータスを保持する", () => {
   const err = new ApiError("認証エラー", 401);
