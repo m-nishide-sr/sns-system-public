@@ -24,7 +24,8 @@
 
 - /review/template.yaml
   - CloudFront ： `Type: AWS::CloudFront::Distribution`
-    - `PricingPlan: Free` ： Flat-Rate PlanをFreeで作成
+    - `PriceClass: PriceClass_200` ： 日本を含む"200"を指定
+    - `PricingPlan: Free` ： Flat-Rate PlanをFreeで作成 ※現在、定額プランはマネジメントコンソール上からしか設定できないため手動で実施。
     - 認証不要。
     - 一般的には`*.cloudfront.net`ドメインは固定でなく一時的なもののため独自ドメインを利用するが、これは関係者内でのみ参照し外部から参照する類のものではないため、`*.cloudfront.net`ドメインを使用する。
     - DefaultRootObject: index.html
@@ -39,10 +40,10 @@
 - プルリクエストをトリガーとして実行される。
   - `cargo tarpaulin --out Html -- --include-ignored`を実行し、カバレッジレポートを出力する。
   - `cargo doc --no-deps`を実行し、Rustのドキュメントを出力する。
-  - `cargo run --features openapi --bin generate-openapi`を実行し、openapi.yamlを出力する。
+  - `cargo run --bin export_openapi`を実行し、openapi.yamlを出力する。
   - `/review/template.yaml`をAWS SAMでデプロイする。
   - フロントエンドのJSDocを出力する。
   - フロントエンドのStorybookを出力する。
-  - コミットID(short12桁)の名前のディレクトリを作成し、カバレッジレポート、Rustのドキュメント、openpi.yaml、JSDoc、Storybook、そしてそれぞれの`index.html`へのリンクを記述したindex.htmlを配置する。
+  - コミットID(short12桁)の名前のディレクトリを作成し、カバレッジレポート、Rustのドキュメント、openapi.yaml、JSDoc、Storybook、そしてそれぞれの`index.html`へのリンクを記述したindex.htmlを配置する。
   - 作成したドキュメントをS3にアップロードする。
   - `github.rest.repos.createDeploymentStatus`によりURL、すなわち`https://*.cloudfront.net/コミットID(short12桁)/index.html`を`environment_url`で通知する。

@@ -56,14 +56,6 @@ Resources:
       # CORS 設定。
       # ブラウザから別オリジンで API を叩く場合に必要です。
       CorsConfiguration:
-        # 許可する Origin 一覧。
-        # 今回は Stage に応じて1つだけ許可しています。
-        #
-        # develop なら test page、release なら GitHub Pages など。
-        # 将来オリジンが増えるなら配列に複数追加する設計も可能です。
-        AllowOrigins:
-          - !FindInMap [StageMap, !Ref Stage, AllowOrigin]
-
         # 許可する HTTP メソッド。
         # プリフライト(OPTIONS)も含めています。
         AllowMethods:

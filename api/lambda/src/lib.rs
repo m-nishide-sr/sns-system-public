@@ -280,7 +280,7 @@ pub async fn function_handler(
                 return json_response(
                     400,
                     &ErrorResponse {
-                        message: "Bad Authorized Email Address".to_string(),
+                        message: "登録しているemailアドレスが不正です".to_string(),
                     },
                 );
             };

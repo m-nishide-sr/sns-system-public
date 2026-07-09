@@ -86,7 +86,8 @@
 
 - /frontend/template.yaml
   - CloudFront ： `Type: AWS::CloudFront::Distribution`
-    - `PricingPlan: Free` ： Flat-Rate PlanをFreeで作成
+    - `PriceClass: PriceClass_200` ： 日本を含む"200"を指定
+    - `PricingPlan: Free` ： Flat-Rate PlanをFreeで作成 ※現在、定額プランはマネジメントコンソール上からしか設定できないため手動で実施。
     - `DeletionPolicy` ： `$Stage`が`release`なら`Retain`、`develop`なら`Delete`
     - `DistributionConfig`
       - `Enabled: true`
