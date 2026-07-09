@@ -41,7 +41,8 @@ Resources:
             Status: Enabled
             # 有効期限（オブジェクト作成からの日数）の設定
             ExpirationInDays: 365
-            Filter: {}
+            # 特定のフォルダ（プレフィックス）にのみ適用する場合（バケット全体なら空文字 ""）
+            Prefix: ""
 
   # CloudFrontからS3へのアクセスを許可するバケットポリシー
   ReviewBucketPolicy:
