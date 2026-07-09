@@ -201,10 +201,11 @@ jobs:
             --output text)
           echo "cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
-          FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
-            --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
-            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
-            --output text)
+          # frontendは未デプロイのため、デプロイ後にコメントアウトを外す
+          # FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
+          #   --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+          #   --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
+          #   --output text)
           echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
       - name: APIの修正
