@@ -31,7 +31,6 @@
   <li><a href="rust-doc/sns_system_core/core_usecase/index.html">Rustドキュメント(core/usecase)</a></li>
   <li><a href="openapi.yaml">OpenAPI仕様</a></li>
   <li><a href="stoplight/index.html">API仕様書(Stoplight Elements)</a></li>
-  <li><a href="redoc/index.html">API仕様書(Redoc)</a></li>
   <li><a href="rapidoc/index.html">API仕様書(RapiDoc)</a></li>
   <li><a href="storybook/index.html">Storybook</a></li>
 </ul>
