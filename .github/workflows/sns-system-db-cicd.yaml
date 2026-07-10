@@ -135,7 +135,7 @@ jobs:
             --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
             --parameter-overrides \
               Stage=${{ steps.stage.outputs.stage }} \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_NAMED_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
             --resolve-s3
