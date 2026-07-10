@@ -104,3 +104,10 @@ Resources:
 
         # 特に個別 override がないルートは CognitoAuthorizer を必須にします。
         DefaultAuthorizer: CognitoAuthorizer
+
+Outputs:
+  HttpApiUrl:
+    Description: HTTP API Gateway URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-apigatewayurl
