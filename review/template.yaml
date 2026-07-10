@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム レビュー資料管理
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイステージ
+  SubSystem:
+    Type: String
+    Default: review
+    AllowedValues:
+      - review
+    Description: サブシステム分類名
+
+Conditions:
+  IsRelease: !Equals [!Ref Stage, release]
+
+Resources:
+  # レビュー資料配信用S3バケット
+  ReviewBucket:
+    Type: AWS::S3::Bucket
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      BucketName: !Sub sns-${SubSystem}-${Stage}-${AWS::AccountId}
+      # パブリックアクセスをブロックし、CloudFrontからのみアクセスさせる
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      # ライフサイクルルールの設定
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldObjectsRule
+            Status: Enabled
+            # 有効期限（オブジェクト作成からの日数）の設定
+            ExpirationInDays: 365
+            # 特定のフォルダ（プレフィックス）にのみ適用する場合（バケット全体なら空文字 ""）
+            Prefix: ""
+
+  # CloudFrontからS3へのアクセスを許可するバケットポリシー
+  ReviewBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ReviewBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${ReviewBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+
+  # CloudFrontディストリビューション
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        # コミットIDディレクトリのルートとしてindex.htmlを返す
+        DefaultRootObject: index.html
+        Origins:
+          # S3オリジン（OACを使用してプライベートアクセス）
+          - Id: S3Origin
+            DomainName: !GetAtt ReviewBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt ReviewBucketOAC.Id
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+        # 日本を含むPriceClass_200を指定
+        PriceClass: PriceClass_200
+
+  # S3への署名付きアクセス制御（OAC）
+  ReviewBucketOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub sns-${SubSystem}-${Stage}-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+Outputs:
+  CloudFrontDomainName:
+    Description: CloudFrontのドメイン名
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-DomainName
+
+  ReviewBucketName:
+    Description: レビュー資料格納S3バケット名
+    Value: !Ref ReviewBucket
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-BucketName
