@@ -112,7 +112,6 @@ jobs:
       - name: Generate Stoplight Elements
         run: |
           mkdir -p review-output/stoplight
-          cp api/openapi.yaml review-output/stoplight/
           cat <<'EOF' > review-output/stoplight/index.html
           <!doctype html>
           <html>
@@ -123,22 +122,16 @@ jobs:
             </head>
             <body>
               <elements-api
-                apiDescriptionUrl="./openapi.yaml"
+                apiDescriptionUrl="../openapi.yaml"
                 router="hash"
               />
             </body>
           </html>
           EOF
 
-      - name: Generate Redoc
-        run: |
-          mkdir -p review-output/redoc
-          npx redoc-cli bundle api/openapi.yaml -o review-output/redoc/index.html
-
       - name: Generate RapiDoc HTML
         run: |
           mkdir -p review-output/rapidoc
-          cp api/openapi.yaml review-output/rapidoc/
           cat <<'EOF' > review-output/rapidoc/index.html
             <!doctype html>
             <html>
@@ -148,7 +141,7 @@ jobs:
                 <script src="https://unpkg.com/rapidoc@9.3.8/dist/rapidoc-min.js" integrity="sha512-0ES6eX4K9J1PrIEjIizv79dTlN5HwI2GW9Ku6ymb8dijMHF5CIplkS8N0iFJ/wl3GybCSqBJu8HDhiFkZRAf0g==" crossorigin="anonymous"></script>
               </head>
               <body>
-                <rapi-doc style="visibility: visible" id="doc" spec-url="./openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header"></rapi-doc>
+                <rapi-doc style="visibility: visible" id="doc" spec-url="../openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header"></rapi-doc>
               </body>
             </html>
           EOF
