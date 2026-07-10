@@ -222,17 +222,17 @@ jobs:
             --output text)
           echo "cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
-          FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
-            --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
-            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
-            --output text)
-          echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+      #     FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
+      #       --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+      #       --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
+      #       --output text)
+      #     echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
-      - name: APIの修正
-        run: |
-          echo "" >> review-output/openapi.yaml
-          echo "servers:" >> review-output/openapi.yaml
-          echo "- url: https://${{ steps.info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
+      # - name: APIの修正
+      #   run: |
+      #     echo "" >> review-output/openapi.yaml
+      #     echo "servers:" >> review-output/openapi.yaml
+      #     echo "- url: https://${{ steps.info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
 
       - name: GitHub Deploymentの作成
         id: deployment

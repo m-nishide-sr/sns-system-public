@@ -107,7 +107,7 @@ Resources:
 
 Outputs:
   HttpApiUrl:
-    Description: HTTP API Gateway URL
-    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+    Description: HTTP API GatewayのエンドポイントURL
+    Value: !GetAtt HttpApi.ApiEndpoint
     Export:
       Name: !Sub sns-${SubSystem}-${Stage}-apigatewayurl
