@@ -45,6 +45,15 @@ jobs:
           AWS_DEFAULT_REGION: ap-northeast-3
         run: sam validate --lint --template-file review/template.yaml
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
+            ./db/sea_orm_entities -> target
+            ./auth/PreSignUpFunction -> target
+
       - name: cargo-tarpaulinのインストール
         run: cargo install cargo-tarpaulin --locked
 
@@ -54,6 +63,14 @@ jobs:
 
       - name: Rustドキュメントの生成(API)
         working-directory: api/lambda
+        run: cargo doc --no-deps
+
+      - name: Rustドキュメントの生成(PreSignUpFunction)
+        working-directory: auth/PreSignUpFunction
+        run: cargo doc --no-deps
+
+      - name: Rustドキュメントの生成(Sea Orm Entities)
+        working-directory: db/sea_orm_entities
         run: cargo doc --no-deps
 
       - name: Rustドキュメントの生成(core)
@@ -77,6 +94,8 @@ jobs:
           mkdir -p review-output/coverage review-output/rust-doc review-output/storybook
           cp api/lambda/tarpaulin-report.html review-output/coverage/
           cp -r api/lambda/target/doc/. review-output/rust-doc/sns_system_api_lambda/
+          cp -r auth/PreSignUpFunction/target/doc/. review-output/rust-doc/sns_system_auth_pre_signup_function/
+          cp -r db/sea_orm_entities/target/doc/. review-output/rust-doc/sns_system_db_sea_orm_entities/
           cp -r core/target/doc/. review-output/rust-doc/sns_system_core/
           cp api/openapi.yaml review-output/
           cp -r frontend/storybook-static/. review-output/storybook/
@@ -89,6 +108,8 @@ jobs:
           <ul>
           <li><a href="coverage/tarpaulin-report.html">カバレッジレポート</a></li>
           <li><a href="rust-doc/sns_system_api_lambda/sns_system_api_lambda/index.html">Rustドキュメント(API)</a></li>
+          <li><a href="rust-doc/sns_system_auth_pre_signup_function/pre_sign_up/index.html">Rustドキュメント(PreSignUpFunction)</a></li>
+          <li><a href="rust-doc/sns_system_db_sea_orm_entities/sea_orm_entities/index.html">Rustドキュメント(Sea Orm Entities)</a></li>
           <li><a href="rust-doc/sns_system_core/core_common/index.html">Rustドキュメント(core/common)</a></li>
           <li><a href="rust-doc/sns_system_core/core_domain/index.html">Rustドキュメント(core/domain)</a></li>
           <li><a href="rust-doc/sns_system_core/core_infrastructure/index.html">Rustドキュメント(core/infrastructure)</a></li>
@@ -111,7 +132,7 @@ jobs:
           <!doctype html>
           <html>
             <head>
-              <meta charset="utf-8"/>
+              <meta charset="utf-8" />
               <script src="https://unpkg.com/@stoplight/elements@9.0.23/web-components.min.js" integrity="sha384-Kx8v0VsAmmNDqBDAOnY3pQFLUNZNwhakX114rKqExXeXBbDgXHBvasXBU8QxWSMB" crossorigin="anonymous"></script>
               <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
             </head>
@@ -133,7 +154,19 @@ jobs:
         run: |
           mkdir -p review-output/rapidoc
           cp api/openapi.yaml review-output/rapidoc/
-          echo '<!doctype html><meta charset="utf-8"><script src="https://unpkg.com/amazon-cognito-identity-js@6.3.20/dist/amazon-cognito-identity.min.js" integrity="sha512-SQetvX8cBgnpMAL46pScfHIn83W6ogqCCoMTHSgscbLIYJjJ5iamF0OAz84uLlE4eg8XJXYY+j1wyUqPnQ1N5w==" crossorigin="anonymous"><script src="https://unpkg.com/rapidoc@9.3.8/dist/rapidoc-min.js" integrity="sha512-0ES6eX4K9J1PrIEjIizv79dTlN5HwI2GW9Ku6ymb8dijMHF5CIplkS8N0iFJ/wl3GybCSqBJu8HDhiFkZRAf0g==" crossorigin="anonymous"></script><body><rapi-doc style="visibility: visible" id="doc" spec-url="./openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header"></rapi-doc></body></html>' > review-output/rapidoc/index.html
+          cat <<'EOF' > review-output/rapidoc/index.html
+            <!doctype html>
+            <html>
+              <head>
+                <meta charset="utf-8" />
+                <script src="https://unpkg.com/amazon-cognito-identity-js@6.3.20/dist/amazon-cognito-identity.min.js" integrity="sha512-SQetvX8cBgnpMAL46pScfHIn83W6ogqCCoMTHSgscbLIYJjJ5iamF0OAz84uLlE4eg8XJXYY+j1wyUqPnQ1N5w==" crossorigin="anonymous"></script>
+                <script src="https://unpkg.com/rapidoc@9.3.8/dist/rapidoc-min.js" integrity="sha512-0ES6eX4K9J1PrIEjIizv79dTlN5HwI2GW9Ku6ymb8dijMHF5CIplkS8N0iFJ/wl3GybCSqBJu8HDhiFkZRAf0g==" crossorigin="anonymous"></script>
+              </head>
+              <body>
+                <rapi-doc style="visibility: visible" id="doc" spec-url="./openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header"></rapi-doc>
+              </body>
+            </html>
+          EOF
 
       - name: アーティファクトのアップロード
         uses: actions/upload-artifact@v4

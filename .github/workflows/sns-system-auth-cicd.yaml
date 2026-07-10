@@ -43,6 +43,15 @@ jobs:
           AWS_DEFAULT_REGION: ap-northeast-3
         run: sam validate --lint
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
+            ./db/sea_orm_entities -> target
+            ./auth/PreSignUpFunction -> target
+
       - name: cargo check の実行
         working-directory: auth/PreSignUpFunction
         run: cargo check
@@ -72,6 +81,15 @@ jobs:
 
       - name: Rustツールチェーンのセットアップ
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
+            ./db/sea_orm_entities -> target
+            ./auth/PreSignUpFunction -> target
 
       - name: cargo-lambdaのインストール
         run: pip install cargo-lambda
