@@ -37,6 +37,13 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
+
       - name: AWS SAM CLIのセットアップ
         uses: aws-actions/setup-sam@v3
 
@@ -188,6 +195,13 @@ jobs:
 
       - name: Rustツールチェーンのセットアップ
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
 
       - name: jqのインストール
         run: sudo apt-get update && sudo apt-get install -y jq

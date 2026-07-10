@@ -35,6 +35,13 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
+
       - name: cargo fmt -- --check の実行
         working-directory: core
         run: cargo fmt -- --check
