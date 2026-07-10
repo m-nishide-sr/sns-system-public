@@ -45,6 +45,13 @@ jobs:
           AWS_DEFAULT_REGION: ap-northeast-3
         run: sam validate --lint --template-file review/template.yaml
 
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ./api/lambda -> target
+            ./core -> target
+
       - name: cargo-tarpaulinのインストール
         run: cargo install cargo-tarpaulin --locked
 
