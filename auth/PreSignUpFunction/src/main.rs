@@ -41,7 +41,7 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
     if is_allowed_domain(email, &allowed_domains)? {
         Ok(event.payload)
     } else {
-        let domain = email.split('@').nth(1).unwrap_or("");
+        let domain = email.rsplit_once('@').map(|(_, d)| d).unwrap_or("");
         // ドメインが許可リストに含まれていないためサインアップを拒否する
         Err(format!("メールアドレスのドメイン '{}' は許可されていません", domain).into())
     }
