@@ -31,6 +31,7 @@ Resources:
         Variables:
           DSQL_ENDPOINT:
             Fn::ImportValue: !Sub sns-db-${Stage}-DSQLEndpoint
+      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/sns-db-${Stage}-lambda-role
       Events:
         ApiEvent:
           Type: HttpApi
