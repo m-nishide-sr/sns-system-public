@@ -19,10 +19,12 @@ const MENU_ITEMS: Array<{ route: AppRoute; label: string }> = [
 export function MenuView({ currentRoute, isAuthenticated, isOpen, onClose, onNavigate }: MenuViewProps) {
   return (
     <>
-      <div
+      <button
         aria-hidden={!isOpen}
+        aria-label="メニューを閉じる"
         className={`fixed inset-0 z-40 bg-slate-950/40 transition ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
         onClick={onClose}
+        type="button"
       />
       <aside
         aria-hidden={!isOpen}
