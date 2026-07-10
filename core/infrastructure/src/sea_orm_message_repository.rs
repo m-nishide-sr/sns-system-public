@@ -145,7 +145,8 @@ mod tests {
     fn limitが0の場合はクエリで50件に補正する() {
         let statement = build_timeline_statement(None, 0);
         let debug = format!("{statement:?}");
-        assert!(debug.contains("messages_latest"));
+        assert!(debug.contains("LIMIT $1"));
+        assert!(debug.contains("50"));
     }
 
     #[tokio::test]
