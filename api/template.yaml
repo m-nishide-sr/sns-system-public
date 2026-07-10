@@ -40,6 +40,10 @@ Resources:
             Method: ANY
     Metadata:
       BuildMethod: rust-cargolambda
+      # export_openapiとbootstrapの2つの[[bin]]があるのでartifact_executable_nameを指定しなければ
+      # どちらが対象のバイナリかをSAMが判断できません。
+      BuildProperties:
+        artifact_executable_name: bootstrap
 
   # HTTP API (API Gateway v2) を SAM で定義しています。
   #
