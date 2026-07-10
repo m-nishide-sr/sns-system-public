@@ -15,11 +15,14 @@ use std::env;
 /// メールアドレスの形式が不正な場合は `Err`。
 fn is_allowed_domain(email: &str, allowed_domains: &str) -> Result<bool, Error> {
     // '@' でメールアドレスを分割し、ドメイン部を取得する
-    let domain = email.split('@').nth(1).ok_or_else(|| -> Error {
+    let (_, domain) = email.rsplit_once('@').ok_or_else(|| -> Error {
         String::from("メールアドレスの形式が不正です").into()
     })?;
+    let domain = domain.to_ascii_lowercase();
 
-    Ok(allowed_domains.split(',').any(|d| d.trim() == domain))
+    Ok(allowed_domains
+        .split(',')
+        .any(|d| d.trim().to_ascii_lowercase() == domain))
 }
 
 /// Cognitoサインアップ前トリガーのハンドラ。
