@@ -240,7 +240,8 @@ Statement DPU Estimate:
   - migrate
     - AWSのクレデンシャルの設定
     - `sam deploy`でデプロイ
-    - Liquibaseでupdateの実施
+    - Liquibaseでupdateの実施  
+      {% raw %}
       ```bash
       STAGE=${{ github.ref == 'refs/heads/release' && 'release' || 'develop' }}
       DSQL_ENDPOINT=$(aws cloudformation describe-stacks --stack-name <スタック名> --query "Stacks[0].Outputs[?ExportName=='<スタック名>-DSQLEndpoint'].OutputValue" --output text)
@@ -251,6 +252,7 @@ Statement DPU Estimate:
       echo "::add-mask::$AWS_ACCOUNT_ID"
       docker run --rm -e LIQUIBASE_HUB_MODE=off -v "${{ github.workspace }}:/workspace" liquibase/liquibase:4.33.0 --search-path=/workspace --changelog-file=db/liquibase/changelog.xml --contexts=$STAGE --url="jdbc:postgresql://$DSQL_ENDPOINT/postgres" --username="admin" --password="$TOKEN" --add-define=Stage=${{ github.ref_name }} --add-define=AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID update
       ```
+      {% endraw %}
   - generate_orm
     - AWSのクレデンシャルの設定
     - `sea-orm-cli generate entity`を実施しormエンティティを生成

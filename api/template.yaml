@@ -104,3 +104,10 @@ Resources:
 
         # 特に個別 override がないルートは CognitoAuthorizer を必須にします。
         DefaultAuthorizer: CognitoAuthorizer
+
+Outputs:
+  HttpApiUrl:
+    Description: HTTP API GatewayのエンドポイントURL
+    Value: !GetAtt HttpApi.ApiEndpoint
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-apigatewayurl
