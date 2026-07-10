@@ -1,0 +1,50 @@
+[package]
+name = "sns-system-api-lambda"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
+
+[[bin]]
+name = "export_openapi"
+path = "src/bin/export_openapi.rs"
+
+[lib]
+name = "sns_system_api_lambda"
+path = "src/lib.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[dependencies]
+aws_lambda_events = "1.2.0"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+core_common = { path = "../../core/common" }
+core_infrastructure = { path = "../../core/infrastructure" }
+core_usecase = { path = "../../core/usecase" }
+lambda_http = "0.14"
+lambda_runtime = "0.13"
+sea-orm = { version = "1", features = [
+  "sqlx-postgres",
+  "runtime-tokio-rustls",
+  "macros",
+  "with-chrono",
+  "with-uuid",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+utoipa = { version = "5", features = ["chrono", "uuid", "yaml"] }
+uuid = { version = "1", features = ["serde", "v7"] }
+
+[dev-dependencies]
+http = "1"

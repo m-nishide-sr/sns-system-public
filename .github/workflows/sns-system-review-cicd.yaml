@@ -1,0 +1,266 @@
+name: SNSシステム レビュー資料管理 CI/CD
+
+on:
+  pull_request:
+    paths:
+      - "api/**"
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - "frontend/**"
+      - "review/**"
+      - ".github/workflows/sns-system-review-cicd.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.jsのセットアップ
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v3
+
+      - name: sam validate --lint の実行
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-3
+        run: sam validate --lint --template-file review/template.yaml
+
+      - name: cargo-tarpaulinのインストール
+        run: cargo install cargo-tarpaulin --locked
+
+      - name: カバレッジレポートの生成
+        working-directory: api/lambda
+        run: cargo tarpaulin --out Html -- --include-ignored
+
+      - name: Rustドキュメントの生成(API)
+        working-directory: api/lambda
+        run: cargo doc --no-deps
+
+      - name: Rustドキュメントの生成(core)
+        working-directory: core
+        run: cargo doc --no-deps
+
+      - name: OpenAPI仕様の生成
+        working-directory: api/lambda
+        run: cargo run --bin export_openapi
+
+      - name: npmパッケージのインストール
+        working-directory: frontend
+        run: npm ci
+
+      - name: Storybookのビルド
+        working-directory: frontend
+        run: npm run build-storybook
+
+      - name: レビュー資料の収集とindex.htmlの生成
+        run: |
+          mkdir -p review-output/coverage review-output/rust-doc review-output/storybook
+          cp api/lambda/tarpaulin-report.html review-output/coverage/
+          cp -r api/lambda/target/doc/. review-output/rust-doc/sns_system_api_lambda/
+          cp -r core/target/doc/. review-output/rust-doc/sns_system_core/
+          cp api/openapi.yaml review-output/
+          cp -r frontend/storybook-static/. review-output/storybook/
+          cat > review-output/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head><meta charset="UTF-8"><title>レビュー資料</title></head>
+          <body>
+          <h1>レビュー資料(コミットID：${{ github.event.pull_request.head.sha }})</h1>
+          <ul>
+          <li><a href="coverage/tarpaulin-report.html">カバレッジレポート</a></li>
+          <li><a href="rust-doc/sns_system_api_lambda/sns_system_api_lambda/index.html">Rustドキュメント(API)</a></li>
+          <li><a href="rust-doc/sns_system_core/core_common/index.html">Rustドキュメント(core/common)</a></li>
+          <li><a href="rust-doc/sns_system_core/core_domain/index.html">Rustドキュメント(core/domain)</a></li>
+          <li><a href="rust-doc/sns_system_core/core_infrastructure/index.html">Rustドキュメント(core/infrastructure)</a></li>
+          <li><a href="rust-doc/sns_system_core/core_usecase/index.html">Rustドキュメント(core/usecase)</a></li>
+          <li><a href="openapi.yaml">OpenAPI仕様</a></li>
+          <li><a href="stoplight/index.html">API仕様書(Stoplight Elements)</a></li>
+          <li><a href="redoc/index.html">API仕様書(Redoc)</a></li>
+          <li><a href="rapidoc/index.html">API仕様書(RapiDoc)</a></li>
+          <li><a href="storybook/index.html">Storybook</a></li>
+          </ul>
+          </body>
+          </html>
+          HTMLEOF
+
+      - name: Generate Stoplight Elements
+        run: |
+          mkdir -p review-output/stoplight
+          cp api/openapi.yaml review-output/stoplight/
+          cat <<'EOF' > review-output/stoplight/index.html
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8"/>
+              <script src="https://unpkg.com/@stoplight/elements@9.0.23/web-components.min.js" integrity="sha384-Kx8v0VsAmmNDqBDAOnY3pQFLUNZNwhakX114rKqExXeXBbDgXHBvasXBU8QxWSMB" crossorigin="anonymous"></script>
+              <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+            </head>
+            <body>
+              <elements-api
+                apiDescriptionUrl="./openapi.yaml"
+                router="hash"
+              />
+            </body>
+          </html>
+          EOF
+
+      - name: Generate Redoc
+        run: |
+          mkdir -p review-output/redoc
+          npx redoc-cli bundle api/openapi.yaml -o review-output/redoc/index.html
+
+      - name: Generate RapiDoc HTML
+        run: |
+          mkdir -p review-output/rapidoc
+          cp api/openapi.yaml review-output/rapidoc/
+          echo '<!doctype html><meta charset="utf-8"><script src="https://unpkg.com/amazon-cognito-identity-js@6.3.20/dist/amazon-cognito-identity.min.js" integrity="sha512-SQetvX8cBgnpMAL46pScfHIn83W6ogqCCoMTHSgscbLIYJjJ5iamF0OAz84uLlE4eg8XJXYY+j1wyUqPnQ1N5w==" crossorigin="anonymous"><script src="https://unpkg.com/rapidoc@9.3.8/dist/rapidoc-min.js" integrity="sha512-0ES6eX4K9J1PrIEjIizv79dTlN5HwI2GW9Ku6ymb8dijMHF5CIplkS8N0iFJ/wl3GybCSqBJu8HDhiFkZRAf0g==" crossorigin="anonymous"></script><body><rapi-doc style="visibility: visible" id="doc" spec-url="./openapi.yaml" render-style="read" allow-try="true" allow-authentication="true" persist-auth="true" theme="dark" show-header="false" api-key-name="Authorization" api-key-location="header"></rapi-doc></body></html>' > review-output/rapidoc/index.html
+
+      - name: アーティファクトのアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-docs
+          path: review-output/
+
+  deploy:
+    name: デプロイ
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: AWSクレデンシャルの設定
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-3
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v3
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          if [ "${{ github.base_ref }}" = "release" ]; then
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: sam deploy の実行
+        run: |
+          sam deploy \
+            --template-file review/template.yaml \
+            --stack-name sns-review-${{ steps.stage.outputs.stage }} \
+            --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
+            --parameter-overrides \
+              Stage=${{ steps.stage.outputs.stage }} \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3
+
+      - name: アーティファクトのダウンロード
+        uses: actions/download-artifact@v4
+        with:
+          name: review-docs
+          path: review-output/
+
+      - name: コミットIDとスタック情報の取得
+        id: info
+        run: |
+          COMMIT_ID=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-12)
+          echo "commit_id=$COMMIT_ID" >> "$GITHUB_OUTPUT"
+
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name sns-review-${{ steps.stage.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ReviewBucketName'].OutputValue" \
+            --output text)
+          echo "bucket_name=$BUCKET_NAME" >> "$GITHUB_OUTPUT"
+
+          CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
+            --stack-name sns-review-${{ steps.stage.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
+            --output text)
+          echo "cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+
+      #     frontendは未デプロイのため、デプロイ後にコメントアウトを外す
+      #     FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
+      #       --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+      #       --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
+      #       --output text)
+      #     echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+
+      # - name: APIの修正
+      #   run: |
+      #     echo "" >> review-output/openapi.yaml
+      #     echo "servers:" >> review-output/openapi.yaml
+      #     echo "- url: https://${{ steps.info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
+
+      - name: GitHub Deploymentの作成
+        id: deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: '${{ github.event.pull_request.head.sha }}',
+              environment: 'review-${{ steps.stage.outputs.stage }}',
+              auto_merge: false,
+              required_contexts: [],
+              description: 'レビュー資料の公開'
+            });
+            return result.data.id;
+          result-encoding: string
+
+      - name: S3へのアップロード
+        run: |
+          aws s3 sync review-output/ \
+            s3://${{ steps.info.outputs.bucket_name }}/${{ steps.info.outputs.commit_id }}/
+
+      - name: GitHub Deployment Statusの更新
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'success',
+              environment_url: 'https://${{ steps.info.outputs.cloudfront_domain }}/${{ steps.info.outputs.commit_id }}/index.html',
+              description: 'レビュー資料の公開完了'
+            });
+
+      - name: Mark deployment failure
+        if: failure() && steps.deployment.outputs.result != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'failure'
+            })

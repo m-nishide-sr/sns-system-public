@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム フロントエンド
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - develop
+      - release
+    Description: デプロイステージ
+  SubSystem:
+    Type: String
+    Default: frontend
+    AllowedValues:
+      - frontend
+    Description: サブシステム分類名
+
+Conditions:
+  IsRelease: !Equals [!Ref Stage, release]
+
+Resources:
+  # フロントエンド静的ファイル配信用S3バケット
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      BucketName: !Sub sns-${SubSystem}-${Stage}-${AWS::AccountId}
+      # パブリックアクセスをブロックし、CloudFrontからのみアクセスさせる
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CloudFrontからS3へのアクセスを許可するバケットポリシー
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${FrontendBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+
+  # CloudFrontディストリビューション
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    # releaseステージはデータ保護のため削除を禁止し、developステージは環境の再作成を容易にするため削除を許可する
+    DeletionPolicy: !If [IsRelease, Retain, Delete]
+    UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        # SPAのハッシュルーティングに対応するためindex.htmlをデフォルトルートオブジェクトに設定
+        DefaultRootObject: index.html
+        # カスタムエラーレスポンスでSPAの404をindex.htmlにフォールバックする
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        Origins:
+          # API Gatewayオリジン
+          - Id: ApiGatewayOrigin
+            DomainName: !Select
+              - 2
+              - !Split
+                - "/"
+                - !ImportValue
+                  "Fn::Sub": "sns-api-${Stage}-apigatewayurl"
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+          # S3オリジン（OACを使用してプライベートアクセス）
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt FrontendBucketOAC.Id
+        DefaultCacheBehavior:
+          # デフォルトはS3オリジンから静的ファイルを配信する
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+        CacheBehaviors:
+          # /api/* はAPI Gatewayへルーティングする
+          - PathPattern: /api/*
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # AllViewerExceptHostHeader
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - PATCH
+              - POST
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+        PriceClass: PriceClass_200
+
+  # S3への署名付きアクセス制御（OAC）
+  FrontendBucketOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub sns-${SubSystem}-${Stage}-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+Outputs:
+  CloudFrontDomainName:
+    Description: CloudFrontのドメイン名
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-DomainName
+
+  FrontendBucketName:
+    Description: フロントエンド静的ファイル格納S3バケット名
+    Value: !Ref FrontendBucket
+    Export:
+      Name: !Sub sns-${SubSystem}-${Stage}-BucketName

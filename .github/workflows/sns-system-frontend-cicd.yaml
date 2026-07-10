@@ -1,0 +1,151 @@
+name: SNSシステム フロントエンド CI/CD
+
+on:
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - "frontend/**"
+      - "api/openapi.yaml"
+      - ".github/workflows/sns-system-frontend-cicd.yaml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "api/openapi.yaml"
+      - ".github/workflows/sns-system-frontend-cicd.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.jsのセットアップ
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v2
+
+      - name: sam validate --lint の実行
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-3
+        run: sam validate --lint --template-file frontend/template.yaml
+
+      - name: npmパッケージのインストール
+        working-directory: frontend
+        run: npm ci
+
+      - name: npx tsc --noEmit の実行
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: npm run lint の実行
+        working-directory: frontend
+        run: npm run lint
+
+      - name: npm test の実行
+        working-directory: frontend
+        run: npm test
+
+  deploy:
+    name: デプロイ
+    needs: validate
+    if: >-
+      github.event_name == 'push' &&
+      github.actor != 'github-actions[bot]' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: AWSクレデンシャルの設定
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-3
+
+      - name: Node.jsのセットアップ
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v2
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: npmパッケージのインストール
+        working-directory: frontend
+        run: npm ci
+
+      - name: authのエクスポート値を取得
+        id: auth
+        run: |
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name sns-auth-${{ steps.stage.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text)
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name sns-auth-${{ steps.stage.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+          echo "user_pool_id=$USER_POOL_ID" >> "$GITHUB_OUTPUT"
+          echo "user_pool_client_id=$USER_POOL_CLIENT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: sam build の実行
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ steps.auth.outputs.user_pool_id }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ steps.auth.outputs.user_pool_client_id }}
+        run: sam build
+
+      - name: sam deploy の実行
+        working-directory: frontend
+        run: |
+          sam deploy \
+            --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+            --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
+            --parameter-overrides \
+              Stage=${{ steps.stage.outputs.stage }} \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3
+
+      - name: フロントエンドのビルドと静的ファイルのデプロイ
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ steps.auth.outputs.user_pool_id }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ steps.auth.outputs.user_pool_client_id }}
+        run: |
+          npm run build
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
+            --output text)
+          aws s3 sync out/ s3://$BUCKET_NAME --delete

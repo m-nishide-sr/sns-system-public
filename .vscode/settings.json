@@ -1,0 +1,33 @@
+{
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "bash",
+      "icon": "terminal-bash"
+    }
+  },
+  "rust-analyzer.linkedProjects": [
+    "api/lambda/Cargo.toml",
+    "db/sea_orm_entities/Cargo.toml",
+    "auth/PreSignUpFunction/Cargo.toml",
+    "core/Cargo.toml"
+  ],
+  "rust-analyzer.server.extraEnv": {
+    "PATH": "/home/codespace/.cargo/bin:/usr/bin:/bin"
+  },
+  "editor.wordWrap": "on",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // Markdown用の設定ファイル用
+  "[markdown]": {
+    "editor.defaultFormatter": "vscode.markdown-language-features"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  "editor.formatOnSave": true
+}

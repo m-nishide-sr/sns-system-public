@@ -1,0 +1,120 @@
+name: SNSシステム API CI/CD
+
+on:
+  workflow_run:
+    workflows: ["SNSシステム DB CI/CD"]
+    types:
+      - completed
+  push:
+    branches:
+      - develop
+      - release
+    paths:
+      - "api/**"
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - ".github/workflows/sns-system-api-cicd.yaml"
+  pull_request:
+    paths:
+      - "api/**"
+      - "core/**"
+      - "db/sea_orm_entities/**"
+      - ".github/workflows/sns-system-api-cicd.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    name: 検証
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v3
+
+      - name: sam validate --lint の実行
+        env:
+          AWS_DEFAULT_REGION: ap-northeast-3
+        run: sam validate --lint --template-file api/template.yaml
+
+      - name: cargo fmt -- --check の実行
+        working-directory: api/lambda
+        run: cargo fmt -- --check
+
+      - name: cargo clippy の実行
+        working-directory: api/lambda
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test の実行
+        working-directory: api/lambda
+        run: cargo test --all-features -- --include-ignored
+
+      - name: OpenAPI生成の検証
+        working-directory: api/lambda
+        run: cargo run --bin export_openapi
+
+  deploy:
+    name: デプロイ
+    needs: validate
+    if: >-
+      github.event_name == 'push' &&
+      github.actor != 'github-actions[bot]' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v7
+
+      - name: AWSクレデンシャルの設定
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-3
+
+      - name: Rustツールチェーンのセットアップ
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo-lambdaのインストール
+        run: pip install cargo-lambda
+
+      - name: AWS SAM CLIのセットアップ
+        uses: aws-actions/setup-sam@v3
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: sam build の実行
+        working-directory: api
+        run: sam build
+
+      - name: sam deploy の実行
+        working-directory: api
+        run: |
+          sam deploy \
+            --stack-name sns-api-${{ steps.stage.outputs.stage }} \
+            --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
+            --parameter-overrides \
+              Stage=${{ steps.stage.outputs.stage }} \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3

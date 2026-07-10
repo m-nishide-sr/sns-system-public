@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SNSシステム API
+
+Parameters:
+  Stage:
+    Type: String
+    Default: develop
+    AllowedValues:
+      - develop
+      - release
+  SubSystem:
+    Type: String
+    Default: api
+    AllowedValues:
+      - api
+
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub sns-${SubSystem}-${Stage}-api
+      CodeUri: ./lambda
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - arm64
+      Timeout: 10
+      MemorySize: 128
+      Environment:
+        Variables:
+          DSQL_ENDPOINT:
+            Fn::ImportValue: !Sub sns-db-${Stage}-DSQLEndpoint
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: rust-cargolambda
+
+  # HTTP API (API Gateway v2) を SAM で定義しています。
+  #
+  # REST API (旧 API Gateway) ではなく HTTP API を選ぶことで、
+  # 一般にコストと設定の簡潔さの面で有利です。
+  #
+  # 特徴:
+  # - JWT authorizer との相性がよい
+  # - シンプルな API に向く
+  # - REST API より機能は少ないが、十分なケースが多い
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # CORS 設定。
+      # ブラウザから別オリジンで API を叩く場合に必要です。
+      CorsConfiguration:
+        # 許可する HTTP メソッド。
+        # プリフライト(OPTIONS)も含めています。
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+
+        # ブラウザから送信を許可するリクエストヘッダ。
+        # Authorization を明示的に許可しているので Bearer token を付けた通信が可能です。
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+
+        # Cookie / Authorization header を伴う「資格情報付きリクエスト」として
+        # ブラウザが扱う場合の設定。
+        #
+        # false にしているため、Access-Control-Allow-Credentials: true は返しません。
+        # Bearer token を Authorization ヘッダで送る構成自体は可能ですが、
+        # fetch の credentials: 'include' を伴う Cookie ベース運用はここでは想定していません。
+        AllowCredentials: false
+
+      # API 全体の認証設定。
+      # Cognito JWT authorizer を定義し、原則としてこれをデフォルト認証にしています。
+      #
+      # ただし /health は後段の Lambda Event 側で Authorizer: NONE にしているため、
+      # 個別ルートで認証なしに上書きされます。
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            # Authorization ヘッダから JWT を取り出して検証する設定。
+            IdentitySource: $request.header.Authorization
+
+            JwtConfiguration:
+              # Cognito User Pool の Issuer URL。
+              issuer:
+                Fn::ImportValue: !Sub sns-auth-${Stage}-CognitoIssuer
+              # JWT の aud (Audience) として許可するクライアント ID。
+              audience:
+                - Fn::ImportValue: !Sub sns-auth-${Stage}-UserPoolClientId
+
+        # 特に個別 override がないルートは CognitoAuthorizer を必須にします。
+        DefaultAuthorizer: CognitoAuthorizer

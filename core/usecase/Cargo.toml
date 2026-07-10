@@ -1,0 +1,15 @@
+[package]
+name = "core_usecase"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+core_common = { path = "../common" }
+core_domain = { path = "../domain" }
+serde.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
