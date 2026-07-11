@@ -54,7 +54,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - dsql:DbConnect
-                Resource: !Sub arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}/lambda
+                Resource: !Sub arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}
 
 Outputs:
   DSQLEndpoint:
