@@ -44,6 +44,8 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         - PolicyName: dsql-db-connect
           PolicyDocument:
@@ -52,7 +54,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - dsql:DbConnect
-                Resource: !Sub arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:dbuser:${DsqlCluster}/*
+                Resource: !Sub arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}
 
 Outputs:
   DSQLEndpoint:
