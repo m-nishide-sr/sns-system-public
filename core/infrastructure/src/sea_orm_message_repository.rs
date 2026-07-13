@@ -146,8 +146,6 @@ mod tests {
     };
     use serde::{Deserialize, Serialize};
 
-    use sea_orm_entities::entity::messages;
-
     // テスト用の時刻固定モック構造体
     struct MockClock {
         fixed_time: DateTime<Utc>,
