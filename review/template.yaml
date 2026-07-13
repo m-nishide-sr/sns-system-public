@@ -9,6 +9,9 @@ Parameters:
       - develop
       - release
     Description: デプロイステージ
+  SecretReferer:
+    Type: String
+    Description: シークレットトークン
   SubSystem:
     Type: String
     Default: review
@@ -28,12 +31,12 @@ Resources:
     UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
     Properties:
       BucketName: !Sub sns-${SubSystem}-${Stage}-${AWS::AccountId}
-      # パブリックアクセスブロックを解除（インターネット公開を許可）
+      # パブリックアクセスブロックを部分的に解除（バケットポリシーで公開するため）
       PublicAccessBlockConfiguration:
         BlockPublicPolicy: false
         RestrictPublicBuckets: false
-        BlockPublicAcls: false
-        IgnorePublicAcls: false
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
@@ -56,9 +59,12 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Principal: '*'
+            Principal: "*"
             Action: s3:GetObject
             Resource: !Sub ${ReviewBucket.Arn}/*
+            Condition:
+              StringEquals:
+                "aws:Referer": !Ref SecretReferer
 
   # CloudFrontディストリビューション
   CloudFrontDistribution:
@@ -75,11 +81,15 @@ Resources:
         Origins:
           - Id: S3WebsiteOrigin
             # S3のWebsiteURL（http://...）からドメイン部分だけを抽出
-            DomainName: !Select [2, !Split ["/", !GetAtt ReviewBucket.WebsiteURL]]
+            DomainName:
+              !Select [2, !Split ["/", !GetAtt ReviewBucket.WebsiteURL]]
             CustomOriginConfig:
               HTTPPort: 80
               HTTPSPort: 443
               OriginProtocolPolicy: http-only # S3ウェブサイトホスティングはHTTPのみ対応
+            OriginCustomHeaders:
+              - HeaderName: "Referer"
+                HeaderValue: !Ref SecretReferer
         DefaultCacheBehavior:
           TargetOriginId: S3WebsiteOrigin
           ViewerProtocolPolicy: redirect-to-https # HTTPアクセスを自動でHTTPSにリダイレクト
