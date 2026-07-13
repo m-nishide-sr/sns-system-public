@@ -30,6 +30,7 @@ impl MessageRepository for SeaOrmMessageRepository {
     ) -> CoreResult<Vec<TimelineMessage>> {
         let statement = build_timeline_statement(before, limit);
         let rows = self.db.query_all(statement).await.map_err(|e| {
+            tracing::error!("タイムライン取得に失敗しました: {e}");
             CoreError::Infrastructure(format!("タイムライン取得に失敗しました: {e}"))
         })?;
 
@@ -48,7 +49,10 @@ impl MessageRepository for SeaOrmMessageRepository {
         }
         .insert(&self.db)
         .await
-        .map_err(|e| CoreError::Infrastructure(format!("メッセージ作成に失敗しました: {e}")))?;
+        .map_err(|e| {
+            tracing::error!("メッセージ作成に失敗しました: {e}");
+            CoreError::Infrastructure(format!("メッセージ作成に失敗しました: {e}"))
+        })?;
 
         Ok(())
     }
@@ -89,17 +93,23 @@ fn build_timeline_statement(before: Option<DateTime<Utc>>, limit: u64) -> Statem
 fn to_timeline_message(row: QueryResult) -> CoreResult<TimelineMessage> {
     let created_at = row
         .try_get::<DateTime<Utc>>("", "created_at")
-        .map_err(|e| CoreError::Infrastructure(format!("created_atの変換に失敗しました: {e}")))?;
+        .map_err(|e| {
+            tracing::error!("created_atの変換に失敗しました: {e}");
+            CoreError::Infrastructure(format!("created_atの変換に失敗しました: {e}"))
+        })?;
 
     Ok(TimelineMessage {
         user_name: row.try_get("", "user_name").map_err(|e| {
+            tracing::error!("user_nameの変換に失敗しました: {e}");
             CoreError::Infrastructure(format!("user_nameの変換に失敗しました: {e}"))
         })?,
         created_at,
-        body: row
-            .try_get("", "body")
-            .map_err(|e| CoreError::Infrastructure(format!("bodyの変換に失敗しました: {e}")))?,
+        body: row.try_get("", "body").map_err(|e| {
+            tracing::error!("bodyの変換に失敗しました: {e}");
+            CoreError::Infrastructure(format!("bodyの変換に失敗しました: {e}"))
+        })?,
         is_from_user: row.try_get("", "is_from_user").map_err(|e| {
+            tracing::error!("is_from_userの変換に失敗しました: {e}");
             CoreError::Infrastructure(format!("is_from_userの変換に失敗しました: {e}"))
         })?,
     })
