@@ -3,9 +3,7 @@ use chrono::{DateTime, Utc};
 use core_common::{CoreError, CoreResult};
 use core_domain::{MessageRepository, NewMessage, TimelineMessage};
 use sea_orm::entity::prelude::Uuid;
-use sea_orm::{
-    ConnectionTrait, DatabaseConnection, DbBackend, QueryResult, Statement,
-};
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, QueryResult, Statement};
 
 /// SeaORMを利用したメッセージRepository実装。
 #[derive(Clone)]
@@ -40,13 +38,10 @@ impl MessageRepository for SeaOrmMessageRepository {
         // Statementの組み立て
         let statement = build_create_message_statement(input);
 
-        self.db
-            .query_all(statement)
-            .await
-            .map_err(|e| {
-                tracing::error!("メッセージ作成に失敗しました: {e}");
-                CoreError::Infrastructure(format!("メッセージ作成に失敗しました: {e}"))
-            })?;
+        self.db.query_all(statement).await.map_err(|e| {
+            tracing::error!("メッセージ作成に失敗しました: {e}");
+            CoreError::Infrastructure(format!("メッセージ作成に失敗しました: {e}"))
+        })?;
 
         Ok(())
     }
@@ -63,13 +58,21 @@ fn build_create_message_statement(input: NewMessage) -> Statement {
     let is_from_user = input.is_from_user;
 
     Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            r#"
+        DbBackend::Postgres,
+        r#"
                 INSERT INTO public.messages (id, user_name, cognito_id, created_at, body, row_log, is_from_user)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
-            [id.into(), user_name.into(), cognito_id.into(), created_at.into(), body.into(), row_log.into(), is_from_user.into()],
-        )
+        [
+            id.into(),
+            user_name.into(),
+            cognito_id.into(),
+            created_at.into(),
+            body.into(),
+            row_log.into(),
+            is_from_user.into(),
+        ],
+    )
 }
 
 fn build_timeline_statement(before: Option<DateTime<Utc>>, limit: u64) -> Statement {
@@ -231,7 +234,6 @@ mod tests {
             .await
             .expect("older test message insert should succeed");
 
-
         let second_uuid = uuid::Uuid::new_v4();
         let second_email = format!("local-get-{}@example.com", second_uuid);
         let clock = MockClock::new((now + chrono::Duration::seconds(1)).into());
@@ -246,7 +248,6 @@ mod tests {
             })
             .await
             .expect("newer test message insert should succeed");
-
 
         let third_uuid = uuid::Uuid::new_v4();
         let third_email = format!("local-get-{}@example.com", third_uuid);
