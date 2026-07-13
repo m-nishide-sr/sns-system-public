@@ -18,7 +18,7 @@
 * [DB](./db.md)
 * [フロントエンド](./frontend.md)
 
-### 各レビュー用資料へのリンク
+### 各レビュー用資料へのリンク（CloudFrontから参照のこと）
 
 <ul>
   <li><a target="_blank" href="./coverage/tarpaulin-report.html">カバレッジレポート</a></li>
