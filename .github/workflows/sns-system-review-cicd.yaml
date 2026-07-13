@@ -178,6 +178,32 @@ jobs:
             echo "stage=develop" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: 既存スタックのWebACL IDを取得
+        id: webacl
+        run: |
+          STAGE="${{ steps.stage.outputs.stage }}"
+          WEBACL_ID=""
+
+          # スタックが存在する場合、CloudFrontディストリビューションの既存WebACL IDを取得する
+          # （Flat-Rate Plan設定済みのWebACLを引き継ぐため）
+          DIST_ID=$(aws cloudformation describe-stack-resource \
+            --stack-name sns-review-${STAGE} \
+            --logical-resource-id CloudFrontDistribution \
+            --query "StackResourceDetail.PhysicalResourceId" \
+            --output text 2>/dev/null || true)
+
+          if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+            WEBACL_ID=$(aws cloudfront get-distribution-config \
+              --id "$DIST_ID" \
+              --query "DistributionConfig.WebACLId" \
+              --output text 2>/dev/null || true)
+            if [ "$WEBACL_ID" = "None" ] || [ -z "$WEBACL_ID" ]; then
+              WEBACL_ID=""
+            fi
+          fi
+
+          echo "webacl_id=$WEBACL_ID" >> "$GITHUB_OUTPUT"
+
       - name: sam deploy の実行
         run: |
           sam deploy \
@@ -186,7 +212,7 @@ jobs:
             --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
             --parameter-overrides \
               Stage=${{ steps.stage.outputs.stage }} \
-              SecretReferer=${{ secrets.SECRET_REFERER }} \
+              WebACLId=${{ steps.webacl.outputs.webacl_id }} \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
