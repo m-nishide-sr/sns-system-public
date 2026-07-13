@@ -132,8 +132,7 @@ mod tests {
     use sea_orm_entities::entity::messages;
 
     // テスト用の時刻固定モック構造体
-    pub struct MockClock {
-        // 複数スレッドから安全に時刻を書き換えるために RwLock を使用
+    struct MockClock {
         fixed_time: DateTime<Utc>,
     }
 
