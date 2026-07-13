@@ -154,7 +154,7 @@ mod tests {
         /// テストの途中で任意の時刻を加算する
         #[allow(unused)]
         pub fn add_time(&mut self, duration: chrono::Duration) {
-            self.fixed_time = self.fixed_time + duration;
+            self.fixed_time += duration;
         }
     }
 
