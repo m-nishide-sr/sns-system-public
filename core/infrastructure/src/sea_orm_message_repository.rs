@@ -3,10 +3,7 @@ use chrono::{DateTime, Utc};
 use core_common::{CoreError, CoreResult};
 use core_domain::{MessageRepository, NewMessage, TimelineMessage};
 use sea_orm::entity::prelude::Uuid;
-use sea_orm::{
-    ActiveModelTrait, ConnectionTrait, DatabaseConnection, DbBackend, QueryResult, Set, Statement,
-};
-use sea_orm_entities::entity::messages;
+use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, QueryResult, Statement};
 
 /// SeaORMを利用したメッセージRepository実装。
 #[derive(Clone)]
@@ -38,24 +35,44 @@ impl MessageRepository for SeaOrmMessageRepository {
     }
 
     async fn create(&self, input: NewMessage) -> CoreResult<()> {
-        messages::ActiveModel {
-            id: Set(Uuid::now_v7()),
-            user_name: Set(input.user_name.as_str().to_string()),
-            cognito_id: Set(input.user_id.into_inner()),
-            created_at: Set(input.created_at.into()),
-            body: Set(input.body.as_str().to_string()),
-            row_log: Set(input.row_log),
-            is_from_user: Set(input.is_from_user),
-        }
-        .insert(&self.db)
-        .await
-        .map_err(|e| {
+        // Statementの組み立て
+        let statement = build_create_message_statement(input);
+
+        self.db.query_all(statement).await.map_err(|e| {
             tracing::error!("メッセージ作成に失敗しました: {e}");
             CoreError::Infrastructure(format!("メッセージ作成に失敗しました: {e}"))
         })?;
 
         Ok(())
     }
+}
+
+fn build_create_message_statement(input: NewMessage) -> Statement {
+    // 挿入する値を準備
+    let id = Uuid::now_v7();
+    let user_name = input.user_name.as_str().to_string();
+    let cognito_id = input.user_id.into_inner();
+    let created_at: chrono::DateTime<chrono::FixedOffset> = input.created_at.into(); // 型は環境に合わせて調整してください
+    let body = input.body.as_str().to_string();
+    let row_log = input.row_log;
+    let is_from_user = input.is_from_user;
+
+    Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"
+                INSERT INTO public.messages (id, user_name, cognito_id, created_at, body, row_log, is_from_user)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        [
+            id.into(),
+            user_name.into(),
+            cognito_id.into(),
+            created_at.into(),
+            body.into(),
+            row_log.into(),
+            is_from_user.into(),
+        ],
+    )
 }
 
 fn build_timeline_statement(before: Option<DateTime<Utc>>, limit: u64) -> Statement {
@@ -129,8 +146,6 @@ mod tests {
     };
     use serde::{Deserialize, Serialize};
 
-    use sea_orm_entities::entity::messages;
-
     // テスト用の時刻固定モック構造体
     struct MockClock {
         fixed_time: DateTime<Utc>,
@@ -199,39 +214,38 @@ mod tests {
     #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn 実際にローカルの_postgre_sqlに接続するテスト() {
         let db = create_db_postgres().await.unwrap();
-        let cognito_id = uuid::Uuid::now_v7();
         let repository = SeaOrmMessageRepository::new(db.clone());
         let now = chrono::Utc::now().fixed_offset();
 
         let first_uuid = uuid::Uuid::new_v4();
         let email = format!("local-get-{}@example.com", first_uuid);
-        messages::ActiveModel {
-            id: Set(first_uuid),
-            cognito_id: Set(cognito_id),
-            user_name: Set(email.clone()),
-            created_at: Set(now),
-            body: Set("older body".to_string()),
-            row_log: Set("older row log".to_string()),
-            is_from_user: Set(true),
-        }
-        .insert(&db)
-        .await
-        .expect("older test message insert should succeed");
+        let clock = MockClock::new(now.into());
+        let usecase = PostMessageUseCase::new(repository.clone(), clock);
+        usecase
+            .execute(PostMessageInput {
+                user_id: first_uuid,
+                user_name: email.clone(),
+                body: "older body".to_string(),
+                row_log: "older row log".to_string(),
+                is_from_user: true,
+            })
+            .await
+            .expect("older test message insert should succeed");
 
         let second_uuid = uuid::Uuid::new_v4();
         let second_email = format!("local-get-{}@example.com", second_uuid);
-        messages::ActiveModel {
-            id: Set(second_uuid),
-            cognito_id: Set(cognito_id),
-            user_name: Set(second_email.clone()),
-            created_at: Set(now + chrono::Duration::seconds(1)),
-            body: Set("second body".to_string()),
-            row_log: Set("second row log".to_string()),
-            is_from_user: Set(false),
-        }
-        .insert(&db)
-        .await
-        .expect("newer test message insert should succeed");
+        let clock = MockClock::new((now + chrono::Duration::seconds(1)).into());
+        let usecase = PostMessageUseCase::new(repository.clone(), clock);
+        usecase
+            .execute(PostMessageInput {
+                user_id: second_uuid,
+                user_name: second_email.clone(),
+                body: "second body".to_string(),
+                row_log: "second row log".to_string(),
+                is_from_user: false,
+            })
+            .await
+            .expect("newer test message insert should succeed");
 
         let third_uuid = uuid::Uuid::new_v4();
         let third_email = format!("local-get-{}@example.com", third_uuid);

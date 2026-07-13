@@ -89,11 +89,11 @@ jobs:
         working-directory: frontend
         run: npm run build-storybook
 
-      - name: docsディレクトリをHTMLに変換
+      - name: コミット情報を付与し、docsディレクトリをHTMLに変換
         working-directory: docs
         run: |
           echo '## コミット情報' >> README.md
-          echo '- コミットID：${{ github.event.pull_request.head.sha }}' >> README.md
+          echo '- コミットID：(${{ github.event.pull_request.head.sha }})[https://github.com/m-nishide-sr/sns-system-public/tree/${{ github.event.pull_request.head.sha }}]' >> README.md
           echo '- プルリクエスト：<${{ github.event.pull_request.html_url }}>' >> README.md
           docker run --rm -u $(id -u):$(id -g) -v .:/honkit ghcr.io/nishidemasami/markdown-docs:v1.2.3 npx honkit build
 
