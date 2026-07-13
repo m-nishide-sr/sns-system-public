@@ -28,18 +28,21 @@ Resources:
     UpdateReplacePolicy: !If [IsRelease, Retain, Delete]
     Properties:
       BucketName: !Sub sns-${SubSystem}-${Stage}-${AWS::AccountId}
-      # パブリックアクセスをブロックし、CloudFrontからのみアクセスさせる
+      # パブリックアクセスブロックを解除（インターネット公開を許可）
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
       # ライフサイクルルールの設定
       LifecycleConfiguration:
         Rules:
           - Id: ExpireOldObjectsRule
             Status: Enabled
-            # 有効期限（オブジェクト作成からの日数）の設定
+            # 有効期限（オブジェクト作成からの日数）の設定(約10年)
             ExpirationInDays: 3650
             # 特定のフォルダ（プレフィックス）にのみ適用する場合（バケット全体なら空文字 ""）
             Prefix: ""
@@ -53,13 +56,9 @@ Resources:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
+            Principal: '*'
             Action: s3:GetObject
             Resource: !Sub ${ReviewBucket.Arn}/*
-            Condition:
-              StringEquals:
-                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
 
   # CloudFrontディストリビューション
   CloudFrontDistribution:
@@ -70,37 +69,31 @@ Resources:
     Properties:
       DistributionConfig:
         Enabled: true
-        # コミットIDディレクトリのルートとしてindex.htmlを返す
+        HttpVersion: http2and3
+        # トップページ（例: index.html）の自動補完設定
         DefaultRootObject: index.html
         Origins:
-          # S3オリジン（OACを使用してプライベートアクセス）
-          - Id: S3Origin
-            DomainName: !GetAtt ReviewBucket.RegionalDomainName
-            S3OriginConfig:
-              OriginAccessIdentity: ""
-            OriginAccessControlId: !GetAtt ReviewBucketOAC.Id
+          - Id: S3WebsiteOrigin
+            # S3のWebsiteURL（http://...）からドメイン部分だけを抽出
+            DomainName: !Select [2, !Split ["/", !GetAtt ReviewBucket.WebsiteURL]]
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only # S3ウェブサイトホスティングはHTTPのみ対応
         DefaultCacheBehavior:
-          TargetOriginId: S3Origin
-          ViewerProtocolPolicy: redirect-to-https
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          TargetOriginId: S3WebsiteOrigin
+          ViewerProtocolPolicy: redirect-to-https # HTTPアクセスを自動でHTTPSにリダイレクト
           AllowedMethods:
             - GET
             - HEAD
           CachedMethods:
             - GET
             - HEAD
+          # 拡張されたキャッシュポリシー（推奨：CachingOptimized）
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          Compress: true
         # 日本を含むPriceClass_200を指定
         PriceClass: PriceClass_200
-
-  # S3への署名付きアクセス制御（OAC）
-  ReviewBucketOAC:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: !Sub sns-${SubSystem}-${Stage}-oac
-        OriginAccessControlOriginType: s3
-        SigningBehavior: always
-        SigningProtocol: sigv4
 
 Outputs:
   CloudFrontDomainName:

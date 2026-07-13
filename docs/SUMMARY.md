@@ -1,7 +1,7 @@
-<!-- これはGitbook(Honkit)用の目次ページです。index.htmlはHTMLに出力された時のみ有効になります。 -->
+<!-- これはGitbook(Honkit)用の目次ページです。 -->
 # 目次
 
-* [TOP](./index.html)
+* [TOP](./README.md)
 
 ## サブプロジェクト
 
