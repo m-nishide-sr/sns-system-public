@@ -120,13 +120,49 @@ mod tests {
     use super::*;
     use crate::create_db_postgres;
     use chrono::Utc;
+    use core_common::Clock;
     // use sea_orm::{ActiveModelTrait, ColumnTrait, Database, EntityTrait, QueryFilter, Set};
     // use sea_orm_entities::entity::messages::{self, Column, Entity as Messages};
-    use core_usecase::{GetTimelineInput, GetTimelineOutput, GetTimelineUseCase, TimelineItem};
+    use core_usecase::{
+        GetTimelineInput, GetTimelineOutput, GetTimelineUseCase, PostMessageInput,
+        PostMessageUseCase, TimelineItem,
+    };
     use serde::{Deserialize, Serialize};
 
     use sea_orm_entities::entity::messages;
 
+    // テスト用の時刻固定モック構造体
+    struct MockClock {
+        fixed_time: DateTime<Utc>,
+    }
+
+    impl MockClock {
+        /// 指定した初期時刻でモックを作成する
+        pub fn new(initial_time: DateTime<Utc>) -> Self {
+            Self {
+                fixed_time: initial_time,
+            }
+        }
+
+        /// テストの途中で任意の時刻に変更する
+        #[allow(unused)]
+        pub fn set_time(&mut self, new_time: DateTime<Utc>) {
+            self.fixed_time = new_time;
+        }
+
+        /// テストの途中で任意の時刻を加算する
+        #[allow(unused)]
+        pub fn add_time(&mut self, duration: chrono::Duration) {
+            self.fixed_time += duration;
+        }
+    }
+
+    // Clock トレイトを実装
+    impl Clock for MockClock {
+        fn now(&self) -> DateTime<Utc> {
+            self.fixed_time
+        }
+    }
     /// タイムライン取得レスポンス。
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
     pub struct TimelineMessageResponse {
@@ -199,20 +235,20 @@ mod tests {
 
         let third_uuid = uuid::Uuid::new_v4();
         let third_email = format!("local-get-{}@example.com", third_uuid);
-        messages::ActiveModel {
-            id: Set(third_uuid),
-            cognito_id: Set(cognito_id),
-            user_name: Set(third_email.clone()),
-            created_at: Set(now + chrono::Duration::seconds(2)),
-            body: Set("third body".to_string()),
-            row_log: Set("third row log".to_string()),
-            is_from_user: Set(true),
-        }
-        .insert(&db)
-        .await
-        .expect("newer test message insert should succeed");
+        let clock = MockClock::new((now + chrono::Duration::seconds(2)).into());
+        let usecase = PostMessageUseCase::new(repository.clone(), clock);
+        usecase
+            .execute(PostMessageInput {
+                user_id: third_uuid,
+                user_name: third_email.clone(),
+                body: "third body".to_string(),
+                row_log: "third row log".to_string(),
+                is_from_user: true,
+            })
+            .await
+            .expect("newer test message insert should succeed");
 
-        let usecase = GetTimelineUseCase::new(repository);
+        let usecase = GetTimelineUseCase::new(repository.clone());
         let output: GetTimelineOutput = match usecase
             .execute(GetTimelineInput {
                 limit: 2,
