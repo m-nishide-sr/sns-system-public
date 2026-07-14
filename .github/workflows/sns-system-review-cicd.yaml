@@ -186,6 +186,7 @@ jobs:
             --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
             --parameter-overrides \
               Stage=${{ steps.stage.outputs.stage }} \
+              SecretReferer="${{ secrets.SECRET_REFERER }}" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
