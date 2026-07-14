@@ -140,9 +140,7 @@ mod tests {
         let result = handler(LambdaEvent::new(event, Context::default())).await;
 
         match previous {
-            Some(value) => unsafe {
-                env::set_var("ALLOWED_EMAIL_DOMAINS", value);
-            },
+            Some(value) => env::set_var("ALLOWED_EMAIL_DOMAINS", value),
             None => env::remove_var("ALLOWED_EMAIL_DOMAINS"),
         }
 
