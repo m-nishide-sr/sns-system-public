@@ -110,9 +110,7 @@ mod tests {
     #[tokio::test]
     async fn handlerは型付きイベントからemailを取得できる() {
         let previous = env::var_os("ALLOWED_EMAIL_DOMAINS");
-        unsafe {
-            env::set_var("ALLOWED_EMAIL_DOMAINS", "example.com");
-        }
+        env::set_var("ALLOWED_EMAIL_DOMAINS", "example.com");
 
         let event: CognitoEventUserPoolsPreSignup = serde_json::from_value(json!({
             "version": "1",
