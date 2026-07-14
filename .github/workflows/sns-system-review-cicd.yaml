@@ -1,11 +1,22 @@
 name: SNSシステム レビュー資料管理 CI/CD
 
 on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: デプロイステージ
+        required: true
+        default: develop
+        type: choice
+        options:
+          - develop
+          - release
   pull_request:
     paths:
       - "api/**"
       - "core/**"
       - "db/sea_orm_entities/**"
+      - "docs/**"
       - "frontend/**"
       - "review/**"
       - ".github/workflows/sns-system-review-cicd.yaml"
@@ -39,6 +50,21 @@ jobs:
 
       - name: AWS SAM CLIのセットアップ
         uses: aws-actions/setup-sam@v3
+
+      - name: デプロイステージの設定
+        id: stage
+        run: |
+          # 手動入力(inputs.stage)があればそれを使い、なければbase_refで判定する
+          if [ -n "${{ github.event.inputs.stage }}" ]; then
+            echo "stage=${{ github.event.inputs.stage }}" >> "$GITHUB_OUTPUT"
+            echo "commitid=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.base_ref }}" = "release" ]; then
+            echo "stage=release" >> "$GITHUB_OUTPUT"
+            echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "stage=develop" >> "$GITHUB_OUTPUT"
+            echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: sam validate --lint の実行
         env:
@@ -93,7 +119,8 @@ jobs:
         working-directory: docs
         run: |
           echo '## コミット情報' >> README.md
-          echo '- コミットID：(${{ github.event.pull_request.head.sha }})[https://github.com/m-nishide-sr/sns-system-public/tree/${{ github.event.pull_request.head.sha }}]' >> README.md
+          echo '- コミットID：[${{ steps.stage.outputs.commitid }}](https://github.com/m-nishide-sr/sns-system-public/tree/${{ steps.stage.outputs.commitid }})' >> README.md
+          echo '- ステージ：${{ steps.stage.outputs.stage }}' >> README.md
           echo '- プルリクエスト：<${{ github.event.pull_request.html_url }}>' >> README.md
           docker run --rm -u $(id -u):$(id -g) -v .:/honkit ghcr.io/nishidemasami/markdown-docs:v1.2.3 npx honkit build
 
@@ -172,10 +199,16 @@ jobs:
       - name: デプロイステージの設定
         id: stage
         run: |
-          if [ "${{ github.base_ref }}" = "release" ]; then
+          # 手動入力(inputs.stage)があればそれを使い、なければbase_refで判定する
+          if [ -n "${{ github.event.inputs.stage }}" ]; then
+            echo "stage=${{ github.event.inputs.stage }}" >> "$GITHUB_OUTPUT"
+            echo "commitid=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.base_ref }}" = "release" ]; then
             echo "stage=release" >> "$GITHUB_OUTPUT"
+            echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           else
             echo "stage=develop" >> "$GITHUB_OUTPUT"
+            echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: sam deploy の実行
@@ -201,7 +234,7 @@ jobs:
       - name: コミットIDとスタック情報の取得
         id: info
         run: |
-          COMMIT_ID=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-12)
+          COMMIT_ID=$(echo "${{ steps.stage.outputs.commitid }}" | cut -c1-12)
           echo "commit_id=$COMMIT_ID" >> "$GITHUB_OUTPUT"
 
           BUCKET_NAME=$(aws cloudformation describe-stacks \
@@ -222,7 +255,7 @@ jobs:
             --output text)
           echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
-      - name: APIの修正
+      - name: openapi.yamlのAPIエンドポイント情報の追加
         run: |
           echo "" >> review-output/openapi.yaml
           echo "servers:" >> review-output/openapi.yaml
@@ -236,7 +269,7 @@ jobs:
             const result = await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: '${{ github.event.pull_request.head.sha }}',
+              ref: '${{ steps.stage.outputs.commitid }}',
               environment: 'review-${{ steps.stage.outputs.stage }}',
               auto_merge: false,
               required_contexts: [],
