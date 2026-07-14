@@ -208,12 +208,15 @@ jobs:
           if [ -n "${{ github.event.inputs.stage }}" ]; then
             echo "stage=${{ github.event.inputs.stage }}" >> "$GITHUB_OUTPUT"
             echo "commitid=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "subdirectoryname=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.base_ref }}" = "release" ]; then
             echo "stage=release" >> "$GITHUB_OUTPUT"
             echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "subdirectoryname=pull_request/${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
           else
             echo "stage=develop" >> "$GITHUB_OUTPUT"
             echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "subdirectoryname=pull_request/${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: sam deploy の実行
@@ -286,7 +289,8 @@ jobs:
       - name: S3へのアップロード
         run: |
           aws s3 sync review-output/ \
-            s3://${{ steps.info.outputs.bucket_name }}/${{ steps.info.outputs.commit_id }}/
+            s3://${{ steps.info.outputs.bucket_name }}/${{ steps.info.outputs.subdirectoryname }}/ \
+            --delete
 
       - name: GitHub Deployment Statusの更新
         if: success()
@@ -298,7 +302,7 @@ jobs:
               repo: context.repo.repo,
               deployment_id: ${{ steps.deployment.outputs.result }},
               state: 'success',
-              environment_url: 'https://${{ steps.info.outputs.cloudfront_domain }}/${{ steps.info.outputs.commit_id }}/index.html',
+              environment_url: 'https://${{ steps.info.outputs.cloudfront_domain }}/${{ steps.info.outputs.subdirectoryname }}/index.html',
               description: 'レビュー資料の公開完了'
             });
 
