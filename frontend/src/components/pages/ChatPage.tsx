@@ -1,3 +1,6 @@
+/**
+ * タイムライン取得と投稿を担当するチャット画面。
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppRoute } from "@/hooks/useHashRouter";
 import { fetchTimeline, postMessage, type TimelineMessage } from "@/lib/api";
@@ -25,6 +28,7 @@ type ChatPageViewProps = {
   onNavigate: (route: AppRoute) => void;
 };
 
+/** API の ISO8601 文字列を日本語表示向け日時へ整形する。 */
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ja-JP", {
     dateStyle: "medium",
@@ -32,6 +36,7 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+/** チャット画面の見た目だけを描画する Presentational Component。 */
 export function ChatPageView({
   isAuthenticated,
   isAuthChecking,
@@ -158,6 +163,7 @@ export function ChatPageView({
   );
 }
 
+/** タイムライン状態管理と投稿処理を束ねる Container Component。 */
 export function ChatPage({ isAuthenticated, isAuthChecking, onNavigate, onToast }: ChatPageProps) {
   const [messages, setMessages] = useState<TimelineMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -170,34 +176,40 @@ export function ChatPage({ isAuthenticated, isAuthChecking, onNavigate, onToast 
     [messages],
   );
 
-  const loadTimeline = useCallback(async (before?: string, append = false) => {
-    setIsLoading(true);
-    try {
-      const timeline = await fetchTimeline(before);
-      setMessages((current) => {
-        if (!append) {
-          return timeline;
-        }
-
-        const next = [...current, ...timeline];
-        const seen = new Set<string>();
-        return next.filter((message) => {
-          const key = `${message.created_at}-${message.user_name}-${message.body}`;
-          if (seen.has(key)) {
-            return false;
+  /**
+   * タイムラインを取得し、必要に応じて既存一覧へ追記する。
+   */
+  const loadTimeline = useCallback(
+    async (before?: string, append = false) => {
+      setIsLoading(true);
+      try {
+        const timeline = await fetchTimeline(before);
+        setMessages((current) => {
+          if (!append) {
+            return timeline;
           }
-          seen.add(key);
-          return true;
+
+          const next = [...current, ...timeline];
+          const seen = new Set<string>();
+          return next.filter((message) => {
+            const key = `${message.created_at}-${message.user_name}-${message.body}`;
+            if (seen.has(key)) {
+              return false;
+            }
+            seen.add(key);
+            return true;
+          });
         });
-      });
-      setHasMore(timeline.length >= 50);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "タイムラインの取得に失敗しました。";
-      onToast(message, "error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onToast]);
+        setHasMore(timeline.length >= 50);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "タイムラインの取得に失敗しました。";
+        onToast(message, "error");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [onToast],
+  );
 
   useEffect(() => {
     if (!isAuthenticated || isAuthChecking) {
@@ -209,6 +221,7 @@ export function ChatPage({ isAuthenticated, isAuthChecking, onNavigate, onToast 
     });
   }, [isAuthenticated, isAuthChecking, loadTimeline]);
 
+  /** 入力中のメッセージを投稿し、成功後に一覧を再取得する。 */
   const handleSubmit = async () => {
     const body = draft.trim();
     if (!body) {
@@ -230,6 +243,7 @@ export function ChatPage({ isAuthenticated, isAuthChecking, onNavigate, onToast 
     }
   };
 
+  /** 末尾メッセージを境界にして追加読み込みを行う。 */
   const handleLoadMore = async () => {
     const lastMessage = sortedMessages[sortedMessages.length - 1];
     if (!lastMessage) {

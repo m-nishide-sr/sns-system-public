@@ -1,3 +1,6 @@
+/**
+ * ハンバーガーメニューから表示するサイドメニュー。
+ */
 import type { AppRoute } from "@/hooks/useHashRouter";
 
 type MenuViewProps = {
@@ -16,6 +19,7 @@ const MENU_ITEMS: Array<{ route: AppRoute; label: string }> = [
   { route: "/terms", label: "利用規約" },
 ];
 
+/** サイドメニューの見た目を描画する Presentational Component。 */
 export function MenuView({ currentRoute, isAuthenticated, isOpen, onClose, onNavigate }: MenuViewProps) {
   return (
     <>
@@ -71,6 +75,7 @@ export function MenuView({ currentRoute, isAuthenticated, isOpen, onClose, onNav
   );
 }
 
+/** メニュー描画をラップする軽量 Container Component。 */
 export function Menu(props: MenuViewProps) {
   return <MenuView {...props} />;
 }

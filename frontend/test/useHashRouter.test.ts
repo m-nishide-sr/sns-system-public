@@ -1,3 +1,6 @@
+/**
+ * ハッシュルーターの正規化規則と許可ルート一覧を検証するテスト。
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeHash, ROUTES } from "../src/hooks/useHashRouter.ts";

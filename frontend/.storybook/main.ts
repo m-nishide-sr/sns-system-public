@@ -1,3 +1,6 @@
+/**
+ * Storybook が参照するストーリーとアドオン構成を定義する。
+ */
 import type { StorybookConfig } from '@storybook/nextjs-vite';
 
 const config: StorybookConfig = {

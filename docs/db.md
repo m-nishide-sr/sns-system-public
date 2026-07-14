@@ -220,7 +220,7 @@ Statement DPU Estimate:
 
 - jobs
   - validate
-    - `sam validate --lint`で`/api/template.yaml`を検証する。
+    - `sam validate --lint`で`/db/template.yaml`を検証する。
     - `cargo check`でコンパイルチェック
     - `cargo test`で軽量テスト実行
     - `cargo clippy`で静的解析

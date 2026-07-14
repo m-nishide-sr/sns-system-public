@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * ハッシュルーティング SPA の画面切り替えと認証状態を束ねるトップレベルページ。
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { Header } from "@/components/Header";
@@ -24,6 +27,7 @@ const PAGE_TITLES: Record<AppRoute, string> = {
   "/terms": "利用規約",
 };
 
+/** 認証済みセッションが存在するかどうかだけを簡易判定する。 */
 async function hasAuthenticatedSession() {
   try {
     const session = await fetchAuthSession();
@@ -33,6 +37,7 @@ async function hasAuthenticatedSession() {
   }
 }
 
+/** ルートごとの画面と共通 UI を組み立てる SPA エントリーポイント。 */
 export default function Home() {
   const { route, navigate } = useHashRouter();
   const { toasts, showToast, removeToast } = useToast();

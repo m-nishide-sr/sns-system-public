@@ -1,3 +1,6 @@
+/**
+ * Storybook 全体へ適用する共通プレビュー設定。
+ */
 import type { Preview } from "@storybook/nextjs-vite";
 import "../app/globals.css";
 

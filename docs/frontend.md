@@ -76,11 +76,13 @@
     - `sam validate --lint`で`/frontend/template.yaml`を検証する。
     - `npx tsc --noEmit`でコンパイルチェック
     - `npm run lint`で静的解析
+    - `npm test`でユニットテストを実行する。
   - deploy
     - AWSのクレデンシャルの設定
     - authのExportされた値を取得
     - `sam build`でビルド
     - `sam deploy`でデプロイ
+    - `npm run build`で静的ファイルを生成し、CloudFormation の Output から取得した S3 バケットへ `aws s3 sync out/ ... --delete` で反映する。
 
 ## フロントエンド インフラ構成
 

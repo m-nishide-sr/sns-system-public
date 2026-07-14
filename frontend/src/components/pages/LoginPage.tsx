@@ -1,3 +1,6 @@
+/**
+ * Cognito を利用したログイン・新規登録・確認コード入力・再設定をまとめた画面。
+ */
 import { useMemo, useState } from "react";
 import {
   confirmResetPassword,
@@ -9,8 +12,11 @@ import {
 import type { AppRoute } from "@/hooks/useHashRouter";
 import type { ToastTone } from "@/components/Toast";
 
+/** 認証画面で選択できるメインタブ。 */
 type AuthTab = "login" | "register";
+/** 認証フロー内の現在ステップ。 */
 type FlowStep = "auth" | "confirm-signup" | "request-reset" | "confirm-reset";
+/** フォーム状態として保持する入力欄名。 */
 type FieldName =
   | "loginEmail"
   | "loginPassword"
@@ -57,6 +63,7 @@ type LoginPageViewProps = {
 const ALLOW_DOMAIN_NOTE =
   "新規登録は管理者が許可したメールドメインに限られます。";
 
+/** 認証画面の見た目だけを描画する Presentational Component。 */
 export function LoginPageView({
   activeTab,
   flowStep,
@@ -374,6 +381,7 @@ export function LoginPageView({
   );
 }
 
+/** Cognito 向けフォーム状態と各認証フローを管理する Container Component。 */
 export function LoginPage({
   isAuthenticated,
   onAuthSuccess,
@@ -395,10 +403,12 @@ export function LoginPage({
   });
   const [confirmationEmail, setConfirmationEmail] = useState("");
 
+  /** 指定された入力欄だけを更新する。 */
   const changeField = (field: FieldName, value: string) => {
     setFields((current) => ({ ...current, [field]: value }));
   };
 
+  /** 共通の多重送信防止制御とエラートースト表示を行う。 */
   const setBusy = async (callback: () => Promise<void>) => {
     setIsBusy(true);
     try {
@@ -417,10 +427,12 @@ export function LoginPage({
     [confirmationEmail, fields.loginEmail, fields.registerEmail],
   );
 
+  /** 補助フローからログイン / 新規登録画面へ戻す。 */
   const handleBack = () => {
     setFlowStep("auth");
   };
 
+  /** ログイン入力済みメールを引き継いで再設定フローへ進める。 */
   const handleStartReset = () => {
     setFields((current) => ({
       ...current,
@@ -429,6 +441,7 @@ export function LoginPage({
     setFlowStep("request-reset");
   };
 
+  /** ログイン要求を送信し、必要なら確認コード入力へ遷移する。 */
   const handleLogin = () =>
     void setBusy(async () => {
       const username = fields.loginEmail.trim();
@@ -452,6 +465,7 @@ export function LoginPage({
       await onAuthSuccess();
     });
 
+  /** 新規登録要求を送信し、必要なら確認コード入力へ遷移する。 */
   const handleRegister = () =>
     void setBusy(async () => {
       const email = fields.registerEmail.trim();
@@ -484,6 +498,7 @@ export function LoginPage({
       );
     });
 
+  /** 受信した確認コードでサインアップを確定する。 */
   const handleConfirmSignUp = () =>
     void setBusy(async () => {
       const username = confirmationTarget.trim();
@@ -503,6 +518,7 @@ export function LoginPage({
       onToast("メール確認が完了しました。ログインしてください。", "success");
     });
 
+  /** パスワード再設定用の確認コード送信を開始する。 */
   const handleRequestReset = () =>
     void setBusy(async () => {
       const username = fields.resetEmail.trim();
@@ -518,6 +534,7 @@ export function LoginPage({
       );
     });
 
+  /** 確認コードを使って新しいパスワードへ更新する。 */
   const handleConfirmReset = () =>
     void setBusy(async () => {
       const username = fields.resetEmail.trim();
