@@ -143,9 +143,7 @@ mod tests {
             Some(value) => unsafe {
                 env::set_var("ALLOWED_EMAIL_DOMAINS", value);
             },
-            None => unsafe {
-                env::remove_var("ALLOWED_EMAIL_DOMAINS");
-            },
+            None => env::remove_var("ALLOWED_EMAIL_DOMAINS"),
         }
 
         assert!(result.is_ok());
