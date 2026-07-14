@@ -39,12 +39,8 @@ fn is_allowed_domain(email: &str, allowed_domains: &str) -> Result<bool, Error> 
 /// Cognito 側の後続処理へ引き渡します。
 async fn handler(
     event: LambdaEvent<CognitoEventUserPoolsPreSignup>,
+    allowed_domains: &String,
 ) -> Result<CognitoEventUserPoolsPreSignup, Error> {
-    let allowed_domains = env::var("ALLOWED_EMAIL_DOMAINS").map_err(|_| -> Error {
-        // 環境変数が未設定の場合はデプロイ設定の問題であるため、明示的なエラーを返す
-        String::from("ALLOWED_EMAIL_DOMAINS 環境変数が設定されていません").into()
-    })?;
-
     let email = event
         .payload
         .request
@@ -67,7 +63,12 @@ async fn handler(
 #[tokio::main(flavor = "current_thread")]
 /// Lambda ランタイムへ型付きハンドラを登録するエントリーポイント。
 async fn main() -> Result<(), Error> {
-    run(service_fn(handler)).await
+    let allowed_domains: String = env::var("ALLOWED_EMAIL_DOMAINS").map_err(|_| -> Error {
+        // 環境変数が未設定の場合はデプロイ設定の問題であるため、明示的なエラーを返す
+        String::from("ALLOWED_EMAIL_DOMAINS 環境変数が設定されていません").into()
+    })?;
+
+    run(service_fn(|event| handler(event, &allowed_domains))).await
 }
 
 #[cfg(test)]
@@ -109,9 +110,6 @@ mod tests {
 
     #[tokio::test]
     async fn handlerは型付きイベントからemailを取得できる() {
-        let previous = env::var_os("ALLOWED_EMAIL_DOMAINS");
-        env::set_var("ALLOWED_EMAIL_DOMAINS", "example.com");
-
         let event: CognitoEventUserPoolsPreSignup = serde_json::from_value(json!({
             "version": "1",
             "triggerSource": "PreSignUp_SignUp",
@@ -137,12 +135,12 @@ mod tests {
         }))
         .unwrap();
 
-        let result = handler(LambdaEvent::new(event, Context::default())).await;
-
-        match previous {
-            Some(value) => env::set_var("ALLOWED_EMAIL_DOMAINS", value),
-            None => env::remove_var("ALLOWED_EMAIL_DOMAINS"),
-        }
+        let test_target_domain = "example.com".to_string();
+        let result = handler(
+            LambdaEvent::new(event, Context::default()),
+            &test_target_domain,
+        )
+        .await;
 
         assert!(result.is_ok());
     }
