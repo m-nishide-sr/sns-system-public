@@ -1,4 +1,4 @@
-# SNSシステム 基本設計書
+# SNSシステム 設計書
 
 ## システム概要
 
@@ -40,4 +40,5 @@
 * [人間向けREADME](./HUMAN_README.md)
 * [バックログ](./TODO.md)
 * [よくある質問](./faq.md)
+* [バージョン](./versions.md)
 * [履歴](./history.md)
