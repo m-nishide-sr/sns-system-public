@@ -31,8 +31,8 @@ async fn main() -> Result<(), Error> {
     // INVOKEフェーズここから
     // INVOKEフェーズではvCPUが1/12コア(約0.08コア)しか割り当てられないため、シングルスレッドで処理する。
     run(service_fn(|event| {
-        let db = db.clone();
-        async move { function_handler(&db, event).await }
+        // INVOKEフェーズでは、Cold Startで作成した共有済みコネクションを使ってHTTPハンドラを実行する。
+        function_handler(&db, event)
     }))
     .await
 }
