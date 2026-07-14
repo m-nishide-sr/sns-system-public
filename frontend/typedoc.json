@@ -1,0 +1,22 @@
+{
+  "entryPoints": [
+    "src/components",
+    "src/hooks",
+    "src/lib",
+    "src/types/api.ts"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "typedoc",
+  "blockTags": [
+    "@param",
+    "@returns",
+    "@typeParam",
+    "@description"
+  ],
+  "exclude": [
+    "**/*.stories.ts"
+  ],
+  "validation": {
+    "notExported": false
+  }
+}

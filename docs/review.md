@@ -42,9 +42,9 @@
   - `cargo doc --no-deps`を実行し、Rustのドキュメントを出力する。
   - `cargo run --bin export_openapi`を実行し、openapi.yamlを出力する。
   - `/review/template.yaml`をAWS SAMでデプロイする。
-  - フロントエンドのJSDocを出力する。
+  - フロントエンドのTypeDocを出力する。
   - フロントエンドのStorybookを出力する。
-  - コミットID(short12桁)の名前のディレクトリを作成し、カバレッジレポート、Rustのドキュメント、openapi.yaml、JSDoc、Storybook、そしてそれぞれの`index.html`へのリンクを記述したindex.htmlを配置する。
+  - コミットID(short12桁)の名前のディレクトリを作成し、カバレッジレポート、Rustのドキュメント、openapi.yaml、TypeDoc、Storybook、そしてそれぞれの`index.html`へのリンクを記述したindex.htmlを配置する。
   - 作成したドキュメントをS3にアップロードする。
   - `github.rest.repos.createDeploymentStatus`によりURL(`https://*.cloudfront.net/コミットID(short12桁)/index.html`の文字列)を`environment_url`に設定することで<https://github.com/m-nishide-sr/sns-system-public/deployments/review-develop>に通知する。
 
