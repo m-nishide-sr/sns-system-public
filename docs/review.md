@@ -32,7 +32,7 @@
   - S3
     - 上記のCloudFrontのオリジン。WebsiteURLで公開する。
     - CI/CDでテスト結果やドキュメントなどのレビュー用資料を公開する。
-    - パブリックアクセスは公開するが、HeaderにSecretRefererを設定することで、CloudFrontからのみアクセスさせる。
+    - パブリックアクセスは公開するが、S3のバケットポリシーでReferer一致を要求してアクセスを抑止する（Refererは偽装可能なため強い認可ではない）。
     - 3650日で削除されるようにS3 Object Expirationを設定。
 
 ## CI/CD
