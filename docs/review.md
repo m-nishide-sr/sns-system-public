@@ -24,17 +24,16 @@
 
 - /review/template.yaml
   - CloudFront ： `Type: AWS::CloudFront::Distribution`
-    - `PriceClass: PriceClass_200` ： 日本を含む"200"を指定
+    - `PriceClass: PriceClass_200` ： "100"は日本が含まれていないため、日本が含まれている"200"を指定。
     - `PricingPlan: Free` ： Flat-Rate PlanをFreeで作成 ※現在、定額プランはマネジメントコンソール上からしか設定できないため手動で実施。
     - 認証不要。
     - 一般的には`*.cloudfront.net`ドメインは固定でなく一時的なもののため独自ドメインを利用するが、これは関係者内でのみ参照し外部から参照する類のものではないため、`*.cloudfront.net`ドメインを使用する。
     - DefaultRootObject: index.html
   - S3
-    - 上記のCloudFrontのオリジン。
+    - 上記のCloudFrontのオリジン。WebsiteURLで公開する。
     - CI/CDでテスト結果やドキュメントなどのレビュー用資料を公開する。
-    - パブリックアクセスはブロックし、CloudFrontからのみアクセスさせる。
-    - 認証不要。
-    - 365日で削除されるようにS3 Object Expirationを設定。
+    - パブリックアクセスは公開するが、HeaderにSecretRefererを設定することで、CloudFrontからのみアクセスさせる。
+    - 3650日で削除されるようにS3 Object Expirationを設定。
 
 ## CI/CD
 
@@ -47,4 +46,14 @@
   - フロントエンドのStorybookを出力する。
   - コミットID(short12桁)の名前のディレクトリを作成し、カバレッジレポート、Rustのドキュメント、openapi.yaml、JSDoc、Storybook、そしてそれぞれの`index.html`へのリンクを記述したindex.htmlを配置する。
   - 作成したドキュメントをS3にアップロードする。
-  - `github.rest.repos.createDeploymentStatus`によりURL、すなわち`https://*.cloudfront.net/コミットID(short12桁)/index.html`を`environment_url`で通知する。
+  - `github.rest.repos.createDeploymentStatus`によりURL(`https://*.cloudfront.net/コミットID(short12桁)/index.html`の文字列)を`environment_url`に設定することで<https://github.com/m-nishide-sr/sns-system-public/deployments/review-develop>に通知する。
+
+## GitHubリポジトリの設定
+
+### GitHub Actionsのsecrets
+
+| 設定名 | 設定値 |
+|--|--|
+| secrets.AWS_DEPLOY_ROLE_ARN | GitHub Actionsで`aws-actions/configure-aws-credentials@v6`の`role-to-assume`に指定するARN |
+| secrets.SAM_DEPLOY_ROLE_ARN | `sam deploy --role-arn`で指定するCloudFormation実行ARN |
+| secrets.SECRET_REFERER | CloudFrontとS3のWebsiteURL間でヘッダーの`aws:Referer`に使用するシークレット文字列 |
