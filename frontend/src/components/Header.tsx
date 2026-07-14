@@ -1,3 +1,6 @@
+/**
+ * 画面上部に固定表示するアプリケーションヘッダー。
+ */
 type HeaderViewProps = {
   isAuthenticated: boolean;
   title: string;
@@ -6,6 +9,7 @@ type HeaderViewProps = {
   onLoginClick: () => void;
 };
 
+/** ヘッダーの見た目だけを担う Presentational Component。 */
 export function HeaderView({
   isAuthenticated,
   title,
@@ -39,6 +43,7 @@ export function HeaderView({
   );
 }
 
+/** 親コンポーネントから受け取った状態をそのまま描画へ橋渡しする。 */
 export function Header(props: HeaderViewProps) {
   return <HeaderView {...props} />;
 }

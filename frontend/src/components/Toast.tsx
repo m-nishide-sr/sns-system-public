@@ -1,13 +1,19 @@
+/**
+ * 一時通知 UI と、その状態を管理するフックを提供する。
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+/** 通知の見た目を表す種別。 */
 export type ToastTone = "success" | "error";
 
+/** 1 件分の通知データ。 */
 export type ToastItem = {
   id: string;
   tone: ToastTone;
   message: string;
 };
 
+/** 追加・削除可能なトースト一覧を管理する。 */
 export function useToast() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
@@ -29,6 +35,7 @@ type ToastCardProps = {
   onClose: (id: string) => void;
 };
 
+/** 1 件の通知カードを自動消滅付きで描画する。 */
 export function ToastCard({ toast, onClose }: ToastCardProps) {
   useEffect(() => {
     const timer = window.setTimeout(() => onClose(toast.id), 3000);
@@ -59,6 +66,7 @@ type ToastViewportProps = {
   onClose: (id: string) => void;
 };
 
+/** 画面右上に通知スタックを表示する。 */
 export function ToastViewport({ toasts, onClose }: ToastViewportProps) {
   return (
     <div className="pointer-events-none fixed right-4 top-4 z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">

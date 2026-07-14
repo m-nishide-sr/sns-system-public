@@ -33,6 +33,7 @@
   <li><a target="_blank" href="./stoplight/index.html">API仕様書(Stoplight Elements)</a></li>
   <li><a target="_blank" href="./rapidoc/index.html">API仕様書(RapiDoc)</a></li>
   <li><a target="_blank" href="./storybook/index.html">Storybook</a></li>
+  <li><a target="_blank" href="./typedoc/index.html">TypeDoc</a></li>
 </ul>
 
 ### その他

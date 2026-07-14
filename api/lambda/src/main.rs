@@ -1,3 +1,8 @@
+//! API Lambda の本番エントリーポイント。
+//!
+//! Cold Start 中にログ初期化と DSQL 接続を完了させ、INVOKE フェーズでは
+//! 共有済みコネクションを用いて HTTP ハンドラだけを実行する構成にしています。
+
 use std::env;
 
 use core_infrastructure::create_db_dsql;
@@ -5,6 +10,7 @@ use lambda_runtime::{Error, run, service_fn};
 use sns_system_api_lambda::function_handler;
 
 #[tokio::main(flavor = "current_thread")]
+/// DSQL 接続を初期化し、Lambda ランタイムへ HTTP ハンドラを登録する。
 async fn main() -> Result<(), Error> {
     // INITフェーズここから
     // INITフェーズは最大10000ms。vCPUが2コア与えられるので、この間に重い処理を済ませておく。

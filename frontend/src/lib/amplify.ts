@@ -1,7 +1,14 @@
+/**
+ * Cognito 用 Amplify 初期化を 1 度だけ実行する。
+ */
 import { Amplify } from "aws-amplify";
 
+/** 二重初期化を避けるためのフラグ。 */
 let configured = false;
 
+/**
+ * 環境変数に応じて Amplify Auth を安全に初期化する。
+ */
 export function ensureAmplifyConfigured() {
   if (configured) {
     return;

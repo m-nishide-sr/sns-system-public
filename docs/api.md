@@ -181,6 +181,7 @@ async fn main() -> Result<(), Error> {
     async fn main() {
     ```
 - フォーマッター ： rustfmt
+  - `cargo fmt -- --check`で差分がないことを確認する。
 - ドキュメンテーションコメント ： 日本語で記載。ドキュメントに出力されることを常に意識して詳細に記載する。
 - ドキュメント生成コマンド ： `cargo doc --no-deps`で出力する。※ドキュメントは`/review`レビュー資料管理で使用している。
 - テストコード ： `#[cfg(test)]`で作成する。
@@ -199,6 +200,7 @@ async fn main() -> Result<(), Error> {
 - jobs
   - validate
     - `sam validate --lint`で`/api/template.yaml`を検証する。
+    - `cargo fmt -- --check`で整形差分を検証する。
     - `cargo check`でコンパイルチェック
     - `cargo clippy`で静的解析
     - テスト実行用環境構築
@@ -241,5 +243,4 @@ async fn main() -> Result<(), Error> {
 
 | 概要 | Export名 | Value |
 |--|--|
-| API GatewayのURL | sns-api-${Stage}-apigatewayurl | !GetAtt <API Gatewayのリソース>.ApiUrl |
-
+| API GatewayのURL | sns-api-${Stage}-apigatewayurl | !GetAtt <API Gatewayのリソース>.ApiEndpoint |

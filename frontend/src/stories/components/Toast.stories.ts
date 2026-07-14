@@ -1,3 +1,6 @@
+/**
+ * トースト通知の成功・失敗表示を確認する Storybook ストーリー。
+ */
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { ToastCard } from '@/components/Toast';
 

@@ -1,3 +1,6 @@
+/**
+ * フッターの表示確認用 Storybook ストーリー。
+ */
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { FooterView } from '@/components/Footer';
 

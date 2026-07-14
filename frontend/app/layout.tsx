@@ -1,3 +1,6 @@
+/**
+ * Next.js アプリケーション全体の共通レイアウトとメタデータを定義する。
+ */
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -6,6 +9,9 @@ export const metadata: Metadata = {
   description: "SNSシステムのフロントエンド",
 };
 
+/**
+ * すべてのページに共通する HTML / body 要素を提供する。
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

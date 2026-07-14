@@ -1,3 +1,6 @@
+/**
+ * トップページの主要導線を確認する Storybook ストーリー。
+ */
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { TopPageView } from '@/components/pages/TopPage';
 

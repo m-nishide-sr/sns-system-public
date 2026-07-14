@@ -1,9 +1,13 @@
+/**
+ * 現時点の利用規約を固定文面で表示するページ。
+ */
 import type { AppRoute } from "@/hooks/useHashRouter";
 
 type TermsPageProps = {
   onNavigate: (route: AppRoute) => void;
 };
 
+/** 利用規約本文の見た目だけを描画する Presentational Component。 */
 export function TermsPageView({ onNavigate }: TermsPageProps) {
   return (
     <div className="mx-auto max-w-4xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl sm:p-10">
@@ -46,6 +50,7 @@ export function TermsPageView({ onNavigate }: TermsPageProps) {
   );
 }
 
+/** 利用規約ページ描画をラップする軽量 Container Component。 */
 export function TermsPage(props: TermsPageProps) {
   return <TermsPageView {...props} />;
 }

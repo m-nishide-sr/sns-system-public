@@ -115,6 +115,10 @@ jobs:
         working-directory: frontend
         run: npm run build-storybook
 
+      - name: TypeDocの生成
+        working-directory: frontend
+        run: npm run build:typedoc
+
       - name: コミット情報を付与し、docsディレクトリをHTMLに変換
         working-directory: docs
         run: |
@@ -126,7 +130,7 @@ jobs:
 
       - name: レビュー資料の収集
         run: |
-          mkdir -p review-output/coverage review-output/rust-doc review-output/storybook
+          mkdir -p review-output/coverage review-output/rust-doc review-output/storybook review-output/typedoc
           cp -r docs/_book/. review-output/
           cp api/lambda/tarpaulin-report.html review-output/coverage/
           cp -r api/lambda/target/doc/. review-output/rust-doc/sns_system_api_lambda/
@@ -135,6 +139,7 @@ jobs:
           cp -r core/target/doc/. review-output/rust-doc/sns_system_core/
           cp api/openapi.yaml review-output/
           cp -r frontend/storybook-static/. review-output/storybook/
+          cp -r frontend/typedoc/. review-output/typedoc/
 
       - name: Generate Stoplight Elements
         run: |

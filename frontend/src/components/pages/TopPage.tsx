@@ -1,3 +1,6 @@
+/**
+ * サービス概要と主要導線を表示するトップページ。
+ */
 import type { AppRoute } from "@/hooks/useHashRouter";
 
 type TopPageViewProps = {
@@ -5,6 +8,7 @@ type TopPageViewProps = {
   onNavigate: (route: AppRoute) => void;
 };
 
+/** トップページの見た目だけを描画する Presentational Component。 */
 export function TopPageView({ isAuthenticated, onNavigate }: TopPageViewProps) {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-6xl items-center">
@@ -67,6 +71,7 @@ export function TopPageView({ isAuthenticated, onNavigate }: TopPageViewProps) {
   );
 }
 
+/** トップページ描画をラップする軽量 Container Component。 */
 export function TopPage(props: TopPageViewProps) {
   return <TopPageView {...props} />;
 }

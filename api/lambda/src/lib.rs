@@ -127,6 +127,7 @@ impl Modify for SecurityAddon {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// API Gateway の生イベントをユースケース単位へ振り分ける内部ルート種別。
 enum Route {
     GetTimeline,
     PostMessageNew,
@@ -134,6 +135,7 @@ enum Route {
     NotFound,
 }
 
+/// API Gateway のパスとメソッドから処理対象ルートを判定する。
 fn route_request(event: &ApiGatewayV2httpRequest) -> Route {
     let path = event
         .raw_path
@@ -334,6 +336,7 @@ pub async fn function_handler(
     }
 }
 
+/// `before` クエリ文字列を ISO8601 日時として検証し、UTC に正規化する。
 fn parse_before(before: Option<&str>) -> CoreResult<Option<DateTime<Utc>>> {
     before
         .map(|v| {
@@ -346,6 +349,7 @@ fn parse_before(before: Option<&str>) -> CoreResult<Option<DateTime<Utc>>> {
         .transpose()
 }
 
+/// 指定したステータスコードと JSON ペイロードから API Gateway 応答を組み立てる。
 fn json_response<T: Serialize>(
     status: i64,
     payload: &T,
@@ -363,6 +367,7 @@ fn json_response<T: Serialize>(
     Ok(response)
 }
 
+/// 共通エラー型を HTTP ステータスと公開用 JSON ボディへ変換する。
 fn error_response(error: CoreError) -> ApiGatewayV2httpResponse {
     let (status, body) = match error {
         CoreError::Validation(_) => (400, r#"{"message":"Bad Request"}"#.to_string()),

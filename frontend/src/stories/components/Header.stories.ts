@@ -1,3 +1,6 @@
+/**
+ * ヘッダーの主要表示状態を確認する Storybook ストーリー。
+ */
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { HeaderView } from '@/components/Header';
 

@@ -1,3 +1,6 @@
+/**
+ * サイドメニューの開閉・状態差分を確認する Storybook ストーリー。
+ */
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { MenuView } from '@/components/Menu';
 

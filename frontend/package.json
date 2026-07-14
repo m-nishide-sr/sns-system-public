@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:typedoc": "typedoc",
     "start": "next start",
     "lint": "eslint",
     "generate:api": "openapi-typescript ../api/openapi.yaml -o src/types/api.ts",
@@ -39,6 +40,7 @@
     "storybook": "^10.4.6",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "typedoc": "^0.28.20",
     "typescript": "^5",
     "vite": "^8.1.3",
     "vitest": "^4.1.10"

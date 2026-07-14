@@ -1,3 +1,6 @@
+/**
+ * パスワード変更・ログアウト・退会をまとめたマイページ。
+ */
 import { useState } from "react";
 import { deleteUser, signOut, updatePassword } from "aws-amplify/auth";
 import type { AppRoute } from "@/hooks/useHashRouter";
@@ -25,6 +28,7 @@ type MyPageViewProps = {
   onNavigate: (route: AppRoute) => void;
 };
 
+/** マイページの見た目だけを描画する Presentational Component。 */
 export function MyPageView({
   isAuthenticated,
   isAuthChecking,
@@ -129,12 +133,14 @@ export function MyPageView({
   );
 }
 
+/** アカウント操作の状態管理を担当する Container Component。 */
 export function MyPage({ isAuthenticated, isAuthChecking, onAuthChange, onNavigate, onToast }: MyPageProps) {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isBusy, setIsBusy] = useState(false);
 
+  /** 共通の多重送信防止制御とエラートースト表示を行う。 */
   const setBusy = async (callback: () => Promise<void>) => {
     setIsBusy(true);
     try {
@@ -147,6 +153,7 @@ export function MyPage({ isAuthenticated, isAuthChecking, onAuthChange, onNaviga
     }
   };
 
+  /** 入力欄ごとに対応する状態だけを更新する。 */
   const handleChangeField = (field: "oldPassword" | "newPassword" | "deleteConfirmation", value: string) => {
     if (field === "oldPassword") {
       setOldPassword(value);
@@ -159,6 +166,7 @@ export function MyPage({ isAuthenticated, isAuthChecking, onAuthChange, onNaviga
     setDeleteConfirmation(value);
   };
 
+  /** 現在パスワードを検証したうえで新パスワードへ更新する。 */
   const handleChangePassword = () => void setBusy(async () => {
     if (!oldPassword || !newPassword) {
       throw new Error("現在のパスワードと新しいパスワードを入力してください。");
@@ -170,6 +178,7 @@ export function MyPage({ isAuthenticated, isAuthChecking, onAuthChange, onNaviga
     onToast("パスワードを変更しました。", "success");
   });
 
+  /** セッションを破棄してログイン画面へ戻す。 */
   const handleLogout = () => void setBusy(async () => {
     await signOut();
     await onAuthChange();
@@ -177,6 +186,7 @@ export function MyPage({ isAuthenticated, isAuthChecking, onAuthChange, onNaviga
     onNavigate("/login");
   });
 
+  /** 確認入力後に Cognito アカウントを削除する。 */
   const handleDeleteAccount = () => void setBusy(async () => {
     if (deleteConfirmation !== "DELETE") {
       throw new Error("DELETE と入力すると退会できます。");
