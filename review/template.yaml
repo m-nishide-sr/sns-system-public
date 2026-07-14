@@ -11,6 +11,7 @@ Parameters:
     Description: デプロイステージ
   SecretReferer:
     Type: String
+    NoEcho: true
     Description: シークレットトークン
   SubSystem:
     Type: String
