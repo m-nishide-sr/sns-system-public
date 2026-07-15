@@ -255,7 +255,7 @@ jobs:
             --stack-name sns-review-${{ steps.stage.outputs.stage }} \
             --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
             --output text)
-          echo "cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "review_cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
           FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
             --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
@@ -289,7 +289,7 @@ jobs:
       - name: S3へのアップロード
         run: |
           aws s3 sync review-output/ \
-            s3://${{ steps.info.outputs.bucket_name }}/${{ steps.info.outputs.subdirectoryname }}/ \
+            s3://${{ steps.info.outputs.bucket_name }}/${{ steps.stage.outputs.subdirectoryname }}/ \
             --delete
 
       - name: GitHub Deployment Statusの更新
@@ -302,7 +302,7 @@ jobs:
               repo: context.repo.repo,
               deployment_id: ${{ steps.deployment.outputs.result }},
               state: 'success',
-              environment_url: 'https://${{ steps.info.outputs.cloudfront_domain }}/${{ steps.info.outputs.subdirectoryname }}/index.html',
+              environment_url: 'https://${{ steps.info.outputs.review_cloudfront_domain }}/${{ steps.stage.outputs.subdirectoryname }}/index.html',
               description: 'レビュー資料の公開完了'
             });
 
