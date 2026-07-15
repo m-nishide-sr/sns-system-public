@@ -142,3 +142,7 @@ Outputs:
     Value: !Ref FrontendBucket
     Export:
       Name: !Sub sns-${SubSystem}-${Stage}-BucketName
+
+  FrontendCloudFrontDistributionId:
+    Description: CloudFrontのディストリビューションID（キャッシュ削除用）
+    Value: !Ref CloudFrontDistribution

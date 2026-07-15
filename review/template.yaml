@@ -118,3 +118,7 @@ Outputs:
     Value: !Ref ReviewBucket
     Export:
       Name: !Sub sns-${SubSystem}-${Stage}-BucketName
+
+  ReviewCloudFrontDistributionId:
+    Description: CloudFrontのディストリビューションID（キャッシュ削除用）
+    Value: !Ref CloudFrontDistribution

@@ -34,6 +34,24 @@ jobs:
   validate:
     name: 検証
     runs-on: ubuntu-latest
+    # 💡 Postgresは「services」機能で立ち上げる
+    # ジョブ終了時にGitHub側が自動で完全にクリーンアップするため、ディスクにゴミが残りません。
+    services:
+      postgres:
+        image: postgres:16-alpine # 💡 Alpine版を使ってイメージ自体の容量を削減
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # 起動を確実にするためのヘルスチェック
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v7
@@ -52,7 +70,7 @@ jobs:
         uses: aws-actions/setup-sam@v3
 
       - name: デプロイステージの設定
-        id: stage
+        id: stage_info
         run: |
           # 手動入力(inputs.stage)があればそれを使い、なければbase_refで判定する
           if [ -n "${{ github.event.inputs.stage }}" ]; then
@@ -70,6 +88,25 @@ jobs:
         env:
           AWS_DEFAULT_REGION: ap-northeast-3
         run: sam validate --lint --template-file review/template.yaml
+
+      - name: Liquibaseのセットアップ
+        uses: liquibase/setup-liquibase@v3
+        with:
+          version: "4.33.0"
+          edition: "community"
+
+      - name: Liquibaseでローカルマイグレーション
+        run: |
+          liquibase \
+            --search-path="${{ github.workspace }}" \
+            update \
+            --changelog-file=db/liquibase/changelog.xml \
+            --context-filter=local \
+            --url=jdbc:postgresql://localhost:5432/postgres \
+            --username=postgres \
+            --password=postgres \
+            -DStage=local \
+            -DAWS_ACCOUNT_ID=123456789012
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -91,6 +128,10 @@ jobs:
         working-directory: api/lambda
         run: cargo doc --no-deps
 
+      - name: カバレッジレポートの生成(PreSignUpFunction)
+        working-directory: auth/PreSignUpFunction
+        run: cargo tarpaulin --out Html -- --include-ignored
+
       - name: Rustドキュメントの生成(PreSignUpFunction)
         working-directory: auth/PreSignUpFunction
         run: cargo doc --no-deps
@@ -98,6 +139,10 @@ jobs:
       - name: Rustドキュメントの生成(Sea Orm Entities)
         working-directory: db/sea_orm_entities
         run: cargo doc --no-deps
+
+      - name: カバレッジレポートの生成(core)
+        working-directory: core
+        run: cargo tarpaulin --out Html -- --include-ignored
 
       - name: Rustドキュメントの生成(core)
         working-directory: core
@@ -123,8 +168,8 @@ jobs:
         working-directory: docs
         run: |
           echo '## コミット情報' >> README.md
-          echo '- コミットID：[${{ steps.stage.outputs.commitid }}](https://github.com/m-nishide-sr/sns-system-public/tree/${{ steps.stage.outputs.commitid }})' >> README.md
-          echo '- ステージ：${{ steps.stage.outputs.stage }}' >> README.md
+          echo '- コミットID：[${{ steps.stage_info.outputs.commitid }}](https://github.com/m-nishide-sr/sns-system-public/tree/${{ steps.stage_info.outputs.commitid }})' >> README.md
+          echo '- ステージ：${{ steps.stage_info.outputs.stage }}' >> README.md
           echo '- プルリクエスト：<${{ github.event.pull_request.html_url }}>' >> README.md
           docker run --rm -u $(id -u):$(id -g) -v .:/honkit ghcr.io/nishidemasami/markdown-docs:v1.2.3 npx honkit build
 
@@ -132,7 +177,9 @@ jobs:
         run: |
           mkdir -p review-output/coverage review-output/rust-doc review-output/storybook review-output/typedoc
           cp -r docs/_book/. review-output/
-          cp api/lambda/tarpaulin-report.html review-output/coverage/
+          cp api/lambda/tarpaulin-report.html review-output/coverage/api_lambda-tarpaulin-report.html
+          cp core/tarpaulin-report.html review-output/coverage/core-tarpaulin-report.html
+          cp auth/PreSignUpFunction/tarpaulin-report.html review-output/coverage/auth_PreSignUpFunction-tarpaulin-report.html
           cp -r api/lambda/target/doc/. review-output/rust-doc/sns_system_api_lambda/
           cp -r auth/PreSignUpFunction/target/doc/. review-output/rust-doc/sns_system_auth_pre_signup_function/
           cp -r db/sea_orm_entities/target/doc/. review-output/rust-doc/sns_system_db_sea_orm_entities/
@@ -179,7 +226,7 @@ jobs:
           EOF
 
       - name: アーティファクトのアップロード
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: review-docs
           path: review-output/
@@ -202,28 +249,34 @@ jobs:
         uses: aws-actions/setup-sam@v3
 
       - name: デプロイステージの設定
-        id: stage
+        id: stage_info
         run: |
           # 手動入力(inputs.stage)があればそれを使い、なければbase_refで判定する
           if [ -n "${{ github.event.inputs.stage }}" ]; then
             echo "stage=${{ github.event.inputs.stage }}" >> "$GITHUB_OUTPUT"
             echo "commitid=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "subdirectoryname=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "deployment_environment=${{ github.event.inputs.stage }}レビュー資料" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.base_ref }}" = "release" ]; then
             echo "stage=release" >> "$GITHUB_OUTPUT"
             echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "subdirectoryname=pull_request/${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+            echo "deployment_environment=プルリクエスト#${{ github.event.pull_request.number }}レビュー資料" >> "$GITHUB_OUTPUT"
           else
             echo "stage=develop" >> "$GITHUB_OUTPUT"
             echo "commitid=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "subdirectoryname=pull_request/${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+            echo "deployment_environment=プルリクエスト#${{ github.event.pull_request.number }}レビュー資料" >> "$GITHUB_OUTPUT"
           fi
 
       - name: sam deploy の実行
         run: |
           sam deploy \
             --template-file review/template.yaml \
-            --stack-name sns-review-${{ steps.stage.outputs.stage }} \
+            --stack-name sns-review-${{ steps.stage_info.outputs.stage }} \
             --role-arn ${{ secrets.SAM_DEPLOY_ROLE_ARN }} \
             --parameter-overrides \
-              Stage=${{ steps.stage.outputs.stage }} \
+              Stage=${{ steps.stage_info.outputs.stage }} \
               SecretReferer="${{ secrets.SECRET_REFERER }}" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
@@ -231,51 +284,54 @@ jobs:
             --resolve-s3
 
       - name: アーティファクトのダウンロード
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: review-docs
           path: review-output/
 
       - name: コミットIDとスタック情報の取得
-        id: info
+        id: cloudformation_info
         run: |
-          COMMIT_ID=$(echo "${{ steps.stage.outputs.commitid }}" | cut -c1-12)
-          echo "commit_id=$COMMIT_ID" >> "$GITHUB_OUTPUT"
-
           BUCKET_NAME=$(aws cloudformation describe-stacks \
-            --stack-name sns-review-${{ steps.stage.outputs.stage }} \
+            --stack-name sns-review-${{ steps.stage_info.outputs.stage }} \
             --query "Stacks[0].Outputs[?OutputKey=='ReviewBucketName'].OutputValue" \
             --output text)
           echo "bucket_name=$BUCKET_NAME" >> "$GITHUB_OUTPUT"
 
           CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
-            --stack-name sns-review-${{ steps.stage.outputs.stage }} \
+            --stack-name sns-review-${{ steps.stage_info.outputs.stage }} \
             --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
             --output text)
-          echo "cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "review_cloudfront_domain=$CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
           FRONTEND_CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks \
-            --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+            --stack-name sns-frontend-${{ steps.stage_info.outputs.stage }} \
             --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomainName'].OutputValue" \
             --output text)
           echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
+
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name sns-review-${{ steps.stage_info.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ReviewCloudFrontDistributionId'].OutputValue" \
+            --output text)
+          echo "distribution_id=$DISTRIBUTION_ID" >> "$GITHUB_OUTPUT"
 
       - name: openapi.yamlのAPIエンドポイント情報の追加
         run: |
           echo "" >> review-output/openapi.yaml
           echo "servers:" >> review-output/openapi.yaml
-          echo "- url: https://${{ steps.info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
+          echo "- url: https://${{ steps.cloudformation_info.outputs.frontend_cloudfront_domain }}" >> review-output/openapi.yaml
 
       - name: GitHub Deploymentの作成
         id: deployment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const result = await github.rest.repos.createDeployment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: '${{ steps.stage.outputs.commitid }}',
-              environment: 'review-${{ steps.stage.outputs.stage }}',
+              ref: '${{ steps.stage_info.outputs.commitid }}',
+              environment: '${{ steps.stage_info.outputs.deployment_environment }}',
               auto_merge: false,
               required_contexts: [],
               description: 'レビュー資料の公開'
@@ -286,11 +342,18 @@ jobs:
       - name: S3へのアップロード
         run: |
           aws s3 sync review-output/ \
-            s3://${{ steps.info.outputs.bucket_name }}/${{ steps.info.outputs.commit_id }}/
+            s3://${{ steps.cloudformation_info.outputs.bucket_name }}/${{ steps.stage_info.outputs.subdirectoryname }}/ \
+            --delete
+
+      - name: CloudFrontのキャッシュ削除
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.cloudformation_info.outputs.distribution_id }} \
+            --paths "/${{ steps.stage_info.outputs.subdirectoryname }}/*"
 
       - name: GitHub Deployment Statusの更新
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.repos.createDeploymentStatus({
@@ -298,13 +361,13 @@ jobs:
               repo: context.repo.repo,
               deployment_id: ${{ steps.deployment.outputs.result }},
               state: 'success',
-              environment_url: 'https://${{ steps.info.outputs.cloudfront_domain }}/${{ steps.info.outputs.commit_id }}/index.html',
+              environment_url: 'https://${{ steps.cloudformation_info.outputs.review_cloudfront_domain }}/${{ steps.stage_info.outputs.subdirectoryname }}/index.html',
               description: 'レビュー資料の公開完了'
             });
 
       - name: Mark deployment failure
         if: failure() && steps.deployment.outputs.result != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.repos.createDeploymentStatus({
