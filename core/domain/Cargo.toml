@@ -9,3 +9,6 @@ chrono.workspace = true
 core_common = { path = "../common" }
 serde.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

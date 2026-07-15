@@ -139,4 +139,24 @@ mod tests {
         let result = MessageBody::new("  テスト  ").expect("正常系で失敗しない想定");
         assert_eq!(result.as_str(), "テスト");
     }
+
+    #[test]
+    fn 正常なユーザー名は前後空白を除去して保持() {
+        let result = UserName::new("  taro  ").expect("正常系で失敗しない想定");
+        assert_eq!(result.as_str(), "taro");
+    }
+
+    #[test]
+    fn ユーザー名が上限超過ならエラー() {
+        let name = "a".repeat(65);
+        let result = UserName::new(name);
+        assert!(matches!(result, Err(CoreError::Validation(_))));
+    }
+
+    #[test]
+    fn user_idはuuidを保持できる() {
+        let id = Uuid::now_v7();
+        let user_id = UserId::new(id);
+        assert_eq!(user_id.into_inner(), id);
+    }
 }

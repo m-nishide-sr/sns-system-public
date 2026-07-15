@@ -18,3 +18,19 @@ impl Clock for SystemClock {
         Utc::now()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Duration;
+
+    #[test]
+    fn system_clockは現在時刻に近い値を返す() {
+        let before = Utc::now();
+        let now = SystemClock.now();
+        let after = Utc::now();
+
+        assert!(now >= before - Duration::seconds(1));
+        assert!(now <= after + Duration::seconds(1));
+    }
+}

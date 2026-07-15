@@ -27,7 +27,7 @@
 
 use anyhow::Error;
 use aurora_dsql_sqlx_connector::pool;
-use sea_orm::{DatabaseConnection, SqlxPostgresConnector};
+use sea_orm::sqlx::PgPool;
 
 /// Aurora DSQL への接続文字列を構築する
 ///
@@ -49,6 +49,23 @@ use sea_orm::{DatabaseConnection, SqlxPostgresConnector};
 /// `aurora_dsql_sqlx_connector` に渡すことで、IAM 認証が自動的に処理されます。
 fn build_connection_string(role: &str, endpoint: &str, region: &str) -> String {
     format!("postgres://{role}@{endpoint}/postgres?region={region}")
+}
+
+/// # AuroraDSQLConnectionInfo
+///
+/// * `role` - Aurora DSQL のデータベースロール名（例: `"lambda"`)
+/// * `endpoint` - Aurora DSQL クラスターのエンドポイントホスト名
+/// * `region` - Aurora DSQL クラスターが存在する AWS リージョン
+pub struct AuroraDSQLConnectionInfo<T>
+where
+    T: AsRef<str>,
+{
+    /// データベースロール名（例: `"lambda"`, `"selectview"`）
+    pub role: T,
+    /// Aurora DSQL クラスターのエンドポイントホスト名
+    pub endpoint: T,
+    /// Aurora DSQL クラスターが存在する AWS リージョン
+    pub region: T,
 }
 
 /// Aurora DSQL への SeaORM データベース接続を作成する
@@ -75,16 +92,48 @@ fn build_connection_string(role: &str, endpoint: &str, region: &str) -> String {
 ///
 /// - `aurora_dsql_sqlx_connector::pool::connect` が失敗した場合（IAM認証エラー、接続拒否等）
 ///   `"Failed to connect to database: ..."` メッセージを含む [`anyhow::Error`] を返します。
-pub async fn create_db_dsql(
-    role: &str,
-    endpoint: &str,
-    region: &str,
-) -> Result<DatabaseConnection, Error> {
+pub async fn create_db_dsql<T>(role: &AuroraDSQLConnectionInfo<T>) -> Result<PgPool, Error>
+where
+    T: AsRef<str>,
+{
     tracing::info!("Creating database connection with Aurora DSQL SQLx connector...");
-    let connection_string = build_connection_string(role, endpoint, region);
+    let connection_string = build_connection_string(
+        role.role.as_ref(),
+        role.endpoint.as_ref(),
+        role.region.as_ref(),
+    );
     let pool = pool::connect(&connection_string)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to connect to database: {}", e))?;
 
-    Ok(SqlxPostgresConnector::from_sqlx_postgres_pool(pool))
+    Ok(pool)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn 接続文字列を正しく組み立てる() {
+        let actual = build_connection_string(
+            "lambda",
+            "example.dsql.ap-northeast-3.on.aws",
+            "ap-northeast-3",
+        );
+        assert_eq!(
+            actual,
+            "postgres://lambda@example.dsql.ap-northeast-3.on.aws/postgres?region=ap-northeast-3"
+                .to_string()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn エラー時に接続できないこと() {
+        let connection_info = AuroraDSQLConnectionInfo {
+            role: "invalid_role",
+            endpoint: "invalid_endpoint",
+            region: "invalid_region",
+        };
+        assert!(create_db_dsql(&connection_info).await.is_err());
+    }
 }

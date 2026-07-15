@@ -19,3 +19,35 @@ pub enum CoreError {
 
 /// コア層の戻り値型。
 pub type CoreResult<T> = Result<T, CoreError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validationはメッセージを保持する() {
+        let error = CoreError::Validation("invalid".to_string());
+        assert_eq!(format!("{error}"), "入力値が不正です: invalid".to_string());
+    }
+
+    #[test]
+    fn unauthorizedは固定メッセージになる() {
+        let error = CoreError::Unauthorized;
+        assert_eq!(format!("{error}"), "認証に失敗しました".to_string());
+    }
+
+    #[test]
+    fn infrastructureは詳細メッセージを含む() {
+        let error = CoreError::Infrastructure("db timeout".to_string());
+        assert_eq!(
+            format!("{error}"),
+            "インフラ層でエラーが発生しました: db timeout".to_string()
+        );
+    }
+
+    #[test]
+    fn core_result型エイリアスが利用できる() {
+        let result: CoreResult<i32> = Ok(1);
+        assert_eq!(result, Ok(1));
+    }
+}

@@ -17,5 +17,5 @@ uuid.workspace = true
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 core_usecase = { path = "../usecase" }

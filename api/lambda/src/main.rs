@@ -5,7 +5,6 @@
 
 use std::env;
 
-use core_infrastructure::create_db_dsql;
 use lambda_runtime::{Error, run, service_fn};
 use sns_system_api_lambda::function_handler;
 
@@ -23,7 +22,13 @@ async fn main() -> Result<(), Error> {
     let dsql_endpoint = env::var("DSQL_ENDPOINT")?;
     let dsql_region = env::var("AWS_REGION")?;
 
-    let db = create_db_dsql("lambda", &dsql_endpoint, &dsql_region).await?;
+    use core_infrastructure::{AuroraDSQLConnectionInfo, DBType, create_db};
+    let db = create_db(DBType::AuroraDSQL(AuroraDSQLConnectionInfo {
+        role: "lambda",
+        endpoint: &dsql_endpoint,
+        region: &dsql_region,
+    }))
+    .await?;
 
     // INITフェーズここまで
     // INITフェーズが10000ms以内に終わらなかった場合、初期化に失敗したと判断され再起動してしまうので注意。
