@@ -34,6 +34,24 @@ jobs:
   validate:
     name: 検証
     runs-on: ubuntu-latest
+    # 💡 Postgresは「services」機能で立ち上げる
+    # ジョブ終了時にGitHub側が自動で完全にクリーンアップするため、ディスクにゴミが残りません。
+    services:
+      postgres:
+        image: postgres:16-alpine # 💡 Alpine版を使ってイメージ自体の容量を削減
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # 起動を確実にするためのヘルスチェック
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: リポジトリのチェックアウト
         uses: actions/checkout@v7
@@ -71,25 +89,16 @@ jobs:
           AWS_DEFAULT_REGION: ap-northeast-3
         run: sam validate --lint --template-file review/template.yaml
 
-      - name: PostgreSQLの起動
-        run: |
-          docker run --rm --name testdb-postgres \
-            -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_DB=postgres \
-            -p 5432:5432 \
-            -d postgres:16
-          until docker exec testdb-postgres pg_isready -U postgres -d postgres; do
-            sleep 1
-          done
+      - name: Liquibaseのセットアップ
+        uses: liquibase/setup-liquibase@v3
+        with:
+          version: "4.33.0"
+          edition: "community"
 
       - name: Liquibaseでローカルマイグレーション
         run: |
-          docker run --rm \
-            --network host \
-            -v "${{ github.workspace }}:/workspace" \
-            liquibase/liquibase:4.33.0 \
-            --search-path=/workspace \
+          liquibase \
+            --search-path="${{ github.workspace }}" \
             update \
             --changelog-file=db/liquibase/changelog.xml \
             --context-filter=local \

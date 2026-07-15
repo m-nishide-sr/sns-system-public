@@ -149,3 +149,12 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
             --output text)
           aws s3 sync out/ s3://$BUCKET_NAME --delete
+
+      - name: CloudFrontのキャッシュ削除
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id $(aws cloudformation describe-stacks \
+            --stack-name sns-frontend-${{ steps.stage.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendCloudFrontDistributionId'].OutputValue" \
+            --output text) \
+            --paths "/*"
