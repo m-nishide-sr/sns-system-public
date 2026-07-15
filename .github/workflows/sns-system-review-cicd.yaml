@@ -301,6 +301,12 @@ jobs:
             --output text)
           echo "frontend_cloudfront_domain=$FRONTEND_CLOUDFRONT_DOMAIN" >> "$GITHUB_OUTPUT"
 
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name sns-review-${{ steps.stage_info.outputs.stage }} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+          echo "distribution_id=$DISTRIBUTION_ID" >> "$GITHUB_OUTPUT"
+
       - name: openapi.yamlのAPIエンドポイント情報の追加
         run: |
           echo "" >> review-output/openapi.yaml
@@ -329,6 +335,12 @@ jobs:
           aws s3 sync review-output/ \
             s3://${{ steps.cloudformation_info.outputs.bucket_name }}/${{ steps.stage_info.outputs.subdirectoryname }}/ \
             --delete
+
+      - name: CloudFrontのキャッシュ削除
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.cloudformation_info.outputs.distribution_id }} \
+            --paths "/${{ steps.stage_info.outputs.subdirectoryname }}/*"
 
       - name: GitHub Deployment Statusの更新
         if: success()
