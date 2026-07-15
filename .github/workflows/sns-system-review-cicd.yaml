@@ -312,7 +312,7 @@ jobs:
 
           DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
             --stack-name sns-review-${{ steps.stage_info.outputs.stage }} \
-            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --query "Stacks[0].Outputs[?OutputKey=='ReviewCloudFrontDistributionId'].OutputValue" \
             --output text)
           echo "distribution_id=$DISTRIBUTION_ID" >> "$GITHUB_OUTPUT"
 
