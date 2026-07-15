@@ -210,6 +210,39 @@ mod tests {
         assert!(debug.contains("50"));
     }
 
+    #[test]
+    fn limitが51以上の場合もクエリで50件に補正する() {
+        let statement = build_timeline_statement(None, 99);
+        let debug = format!("{statement:?}");
+        assert!(debug.contains("LIMIT $1"));
+        assert!(debug.contains("50"));
+    }
+
+    #[test]
+    fn beforeありのクエリを組み立てる() {
+        let before = Utc::now();
+        let statement = build_timeline_statement(Some(before), 10);
+        let debug = format!("{statement:?}");
+        assert!(debug.contains("WHERE created_at < $1"));
+        assert!(debug.contains("LIMIT $2"));
+    }
+
+    #[test]
+    fn メッセージ作成sqlを組み立てる() {
+        let statement = build_create_message_statement(NewMessage {
+            user_name: core_domain::UserName::new("taro").expect("正常系で失敗しない想定"),
+            user_id: core_domain::UserId::new(uuid::Uuid::now_v7()),
+            body: core_domain::MessageBody::new("hello").expect("正常系で失敗しない想定"),
+            created_at: Utc::now(),
+            is_from_user: true,
+            row_log: "row-log".to_string(),
+        });
+
+        let debug = format!("{statement:?}");
+        assert!(debug.contains("INSERT INTO public.messages"));
+        assert!(debug.contains("VALUES ($1, $2, $3, $4, $5, $6, $7)"));
+    }
+
     #[tokio::test]
     #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn 実際にローカルの_postgre_sqlに接続するテスト() {

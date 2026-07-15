@@ -8,3 +8,17 @@ pub mod error;
 
 pub use clock::{Clock, SystemClock};
 pub use error::{CoreError, CoreResult};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn 公開re_exportを利用できる() {
+        let now = SystemClock.now();
+        let result: CoreResult<i32> = Ok(1);
+
+        assert!(now.timestamp() > 0);
+        assert_eq!(result, Ok(1));
+    }
+}

@@ -86,6 +86,7 @@ mod tests {
     #[derive(Clone, Default)]
     struct RecordingRepository {
         saved: Arc<Mutex<Vec<NewMessage>>>,
+        create_error: Arc<Mutex<Option<CoreError>>>,
     }
 
     #[async_trait]
@@ -99,6 +100,14 @@ mod tests {
         }
 
         async fn create(&self, input: NewMessage) -> CoreResult<()> {
+            if let Some(error) = self
+                .create_error
+                .lock()
+                .expect("mutexのロックに失敗しない想定")
+                .clone()
+            {
+                return Err(error);
+            }
             self.saved
                 .lock()
                 .expect("mutexのロックに失敗しない想定")
@@ -132,6 +141,7 @@ mod tests {
             .expect("正常系で失敗しない想定");
 
         assert_eq!(output.status, "success");
+        assert_eq!(output.message, "メッセージを投稿しました");
         assert_eq!(
             repository
                 .saved
@@ -159,5 +169,48 @@ mod tests {
             .expect_err("本文空文字はエラー想定");
 
         assert!(matches!(err, CoreError::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn ユーザー名が空ならバリデーションエラー() {
+        let repository = RecordingRepository::default();
+        let usecase = PostMessageUseCase::new(repository, FixedClock { now: Utc::now() });
+
+        let err = usecase
+            .execute(PostMessageInput {
+                user_id: Uuid::now_v7(),
+                user_name: " ".to_string(),
+                body: "ok".to_string(),
+                row_log: "request-id=test".to_string(),
+                is_from_user: true,
+            })
+            .await
+            .expect_err("ユーザー名空文字はエラー想定");
+
+        assert!(matches!(err, CoreError::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn repositoryエラーをそのまま返す() {
+        let repository = RecordingRepository::default();
+        *repository
+            .create_error
+            .lock()
+            .expect("mutexのロックに失敗しない想定") =
+            Some(CoreError::Infrastructure("db".to_string()));
+        let usecase = PostMessageUseCase::new(repository, FixedClock { now: Utc::now() });
+
+        let err = usecase
+            .execute(PostMessageInput {
+                user_id: Uuid::now_v7(),
+                user_name: "taro".to_string(),
+                body: "ok".to_string(),
+                row_log: "request-id=test".to_string(),
+                is_from_user: true,
+            })
+            .await
+            .expect_err("repositoryエラー想定");
+
+        assert!(matches!(err, CoreError::Infrastructure(_)));
     }
 }

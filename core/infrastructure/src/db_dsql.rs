@@ -88,3 +88,22 @@ pub async fn create_db_dsql(
 
     Ok(SqlxPostgresConnector::from_sqlx_postgres_pool(pool))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn 接続文字列を正しく組み立てる() {
+        let actual = build_connection_string(
+            "lambda",
+            "example.dsql.ap-northeast-3.on.aws",
+            "ap-northeast-3",
+        );
+        assert_eq!(
+            actual,
+            "postgres://lambda@example.dsql.ap-northeast-3.on.aws/postgres?region=ap-northeast-3"
+                .to_string()
+        );
+    }
+}

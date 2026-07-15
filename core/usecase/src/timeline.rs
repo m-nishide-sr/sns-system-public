@@ -71,7 +71,7 @@ fn normalize_limit(limit: u64) -> u64 {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use core_common::CoreResult;
+    use core_common::{CoreError, CoreResult};
     use core_domain::{MessageRepository, NewMessage, TimelineMessage};
 
     struct FakeRepository;
@@ -108,5 +108,64 @@ mod tests {
             .expect("正常系で失敗しない想定");
 
         assert_eq!(output.items[0].user_name, "user-50");
+    }
+
+    #[tokio::test]
+    async fn limitが51以上の場合は50件扱いになる() {
+        let usecase = GetTimelineUseCase::new(FakeRepository);
+        let output = usecase
+            .execute(GetTimelineInput {
+                before: None,
+                limit: 51,
+            })
+            .await
+            .expect("正常系で失敗しない想定");
+
+        assert_eq!(output.items[0].user_name, "user-50");
+    }
+
+    #[tokio::test]
+    async fn limitが1から50ならそのまま使用する() {
+        let usecase = GetTimelineUseCase::new(FakeRepository);
+        let output = usecase
+            .execute(GetTimelineInput {
+                before: None,
+                limit: 10,
+            })
+            .await
+            .expect("正常系で失敗しない想定");
+
+        assert_eq!(output.items[0].user_name, "user-10");
+    }
+
+    struct ErrorRepository;
+
+    #[async_trait]
+    impl MessageRepository for ErrorRepository {
+        async fn list_latest(
+            &self,
+            _before: Option<DateTime<Utc>>,
+            _limit: u64,
+        ) -> CoreResult<Vec<TimelineMessage>> {
+            Err(CoreError::Infrastructure("db error".to_string()))
+        }
+
+        async fn create(&self, _input: NewMessage) -> CoreResult<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn repositoryエラーはそのまま返す() {
+        let usecase = GetTimelineUseCase::new(ErrorRepository);
+        let err = usecase
+            .execute(GetTimelineInput {
+                before: None,
+                limit: 10,
+            })
+            .await
+            .expect_err("エラーが返る想定");
+
+        assert!(matches!(err, CoreError::Infrastructure(_)));
     }
 }
