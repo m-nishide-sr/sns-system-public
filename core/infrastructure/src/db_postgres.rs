@@ -20,7 +20,6 @@ pub async fn create_db_postgres() -> Result<DatabaseConnection, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{LazyLock, Mutex};
 
     #[test]
     fn envが未設定ならデフォルトurlを使う() {
