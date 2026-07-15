@@ -135,7 +135,10 @@ fn to_timeline_message(row: QueryResult) -> CoreResult<TimelineMessage> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_db_postgres;
+    use crate::{
+        PostgreSQLConnectionInfo,
+        db::{DBType, create_db},
+    };
     use chrono::Utc;
     use core_common::Clock;
     // use sea_orm::{ActiveModelTrait, ColumnTrait, Database, EntityTrait, QueryFilter, Set};
@@ -246,7 +249,12 @@ mod tests {
     #[tokio::test]
     #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn 実際にローカルの_postgre_sqlに接続するテスト() {
-        let db = create_db_postgres().await.unwrap();
+        let db = create_db(DBType::PostgreSQL(PostgreSQLConnectionInfo {
+            role: "lambda",
+            password: "lambda",
+        }))
+        .await
+        .unwrap();
         let repository = SeaOrmMessageRepository::new(db.clone());
         let now = chrono::Utc::now().fixed_offset();
 

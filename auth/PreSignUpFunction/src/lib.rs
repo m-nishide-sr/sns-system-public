@@ -2,4 +2,4 @@
 
 mod app;
 
-pub use app::run_lambda;
+pub use app::function_handler;

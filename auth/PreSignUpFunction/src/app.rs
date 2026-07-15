@@ -1,6 +1,5 @@
 use aws_lambda_events::cognito::CognitoEventUserPoolsPreSignup;
-use lambda_runtime::{Error, LambdaEvent, run, service_fn};
-use std::env;
+use lambda_runtime::{Error, LambdaEvent};
 
 /// メールアドレスのドメイン部が許可リストに含まれているか検証する。
 fn is_allowed_domain(email: &str, allowed_domains: &str) -> Result<bool, Error> {
@@ -15,7 +14,7 @@ fn is_allowed_domain(email: &str, allowed_domains: &str) -> Result<bool, Error> 
 }
 
 /// Cognito の Pre Sign-Up トリガー要求を検証し、そのまま返却する。
-async fn handler(
+pub fn function_handler(
     event: LambdaEvent<CognitoEventUserPoolsPreSignup>,
     allowed_domains: &str,
 ) -> Result<CognitoEventUserPoolsPreSignup, Error> {
@@ -35,15 +34,6 @@ async fn handler(
         let domain = email.rsplit_once('@').map(|(_, d)| d).unwrap_or("");
         Err(format!("メールアドレスのドメイン '{}' は許可されていません", domain).into())
     }
-}
-
-/// Lambda ランタイムを起動する。
-pub async fn run_lambda() -> Result<(), Error> {
-    let allowed_domains: String = env::var("ALLOWED_EMAIL_DOMAINS").map_err(|_| -> Error {
-        String::from("ALLOWED_EMAIL_DOMAINS 環境変数が設定されていません").into()
-    })?;
-
-    run(service_fn(|event| handler(event, &allowed_domains))).await
 }
 
 #[cfg(test)]
@@ -110,11 +100,7 @@ mod tests {
         }))
         .unwrap();
 
-        let result = handler(
-            LambdaEvent::new(event, Context::default()),
-            "example.com",
-        )
-        .await;
+        let result = function_handler(LambdaEvent::new(event, Context::default()), "example.com");
 
         assert!(result.is_ok());
     }
@@ -144,11 +130,39 @@ mod tests {
         }))
         .unwrap();
 
-        let result = handler(
-            LambdaEvent::new(event, Context::default()),
-            "example.com",
-        )
-        .await;
+        let result = function_handler(LambdaEvent::new(event, Context::default()), "example.com");
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn handlerは許可しているドメインのemailで無い場合エラー() {
+        let event: CognitoEventUserPoolsPreSignup = serde_json::from_value(json!({
+            "version": "1",
+            "triggerSource": "PreSignUp_SignUp",
+            "region": "ap-northeast-3",
+            "userPoolId": "ap-northeast-3_example",
+            "userName": "user@example.com",
+            "callerContext": {
+                "awsSdkVersion": "aws-sdk-js-3.0.0",
+                "clientId": "example-client-id"
+            },
+            "request": {
+                "userAttributes": {
+                    "email": "user@notallowed.com"
+                },
+                "validationData": {},
+                "clientMetadata": {}
+            },
+            "response": {
+                "autoConfirmUser": false,
+                "autoVerifyEmail": false,
+                "autoVerifyPhone": false
+            }
+        }))
+        .unwrap();
+
+        let result = function_handler(LambdaEvent::new(event, Context::default()), "example.com");
 
         assert!(result.is_err());
     }
