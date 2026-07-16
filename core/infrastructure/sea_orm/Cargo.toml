@@ -6,7 +6,6 @@ edition.workspace = true
 [dependencies]
 anyhow = "1.0.103"
 async-trait.workspace = true
-aurora-dsql-sqlx-connector = { version = "0.1.2", features = ["pool"] }
 chrono.workspace = true
 core_common = { path = "../../common" }
 core_domain = { path = "../../domain" }

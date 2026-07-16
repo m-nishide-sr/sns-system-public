@@ -1,6 +1,6 @@
 use core_domain::AuthRepository;
 use core_infrastructure_lambda::LambdaAuthRepository;
-use lambda_runtime::Error;
+use lambda_runtime::{Error, tracing};
 use std::env;
 use std::sync::OnceLock;
 
@@ -16,20 +16,24 @@ async fn main() -> Result<(), Error> {
 
 /// Lambda 処理の実態。
 async fn executor() -> Result<(), Error> {
-    // get_or_init のクロージャは String を返す必要があるため、内部で expect を使う
-    ALLOWED_EMAIL_DOMAINS.get_or_init(|| {
-        env::var("ALLOWED_EMAIL_DOMAINS")
-            // 環境変数が未設定の場合はデプロイ設定の問題であるため、明示的なエラーを返す
-            .expect("ALLOWED_EMAIL_DOMAINS 環境変数が設定されていません")
+    let allowed_domains = ALLOWED_EMAIL_DOMAINS.get_or_init(|| {
+        match env::var("ALLOWED_EMAIL_DOMAINS") {
+            Ok(value) => value,
+            Err(e) => {
+                // 取得に失敗したら tracing でエラーログを出力
+                tracing::error!(
+                    "ALLOWED_EMAIL_DOMAINS 環境変数の取得に失敗しました: {:?}",
+                    e
+                );
+                // panic! で Lambda を終了させる(Fail-Fast)
+                panic!("Internal Server Error");
+            }
+        }
     });
 
-    EXECUTOR.get_or_init(|| {
-        Box::new(LambdaAuthRepository::new(
-            ALLOWED_EMAIL_DOMAINS.get().unwrap().clone(),
-        ))
-    });
+    let executor = EXECUTOR.get_or_init(|| Box::new(LambdaAuthRepository::new(allowed_domains)));
 
-    EXECUTOR.get().unwrap().execute().await
+    executor.execute().await
 }
 
 #[cfg(test)]

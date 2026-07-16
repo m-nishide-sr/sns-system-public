@@ -41,7 +41,7 @@ fn function_handler(
     }
 }
 
-/// Lambdaを利用したメッセージRepository実装。
+/// Lambda を利用した認証(Pre Sign-Up)用 Repository 実装。
 #[derive(Debug)]
 pub struct LambdaAuthRepository<T>
 where
@@ -54,7 +54,7 @@ impl<T> LambdaAuthRepository<T>
 where
     T: AsRef<str> + Send + Sync + Debug,
 {
-    /// DB接続を受け取りRepositoryを生成する。
+    /// 許可ドメイン一覧(カンマ区切り)を受け取りRepositoryを生成する。
     pub fn new(allowed_domains: T) -> Self {
         Self { allowed_domains }
     }
@@ -82,108 +82,143 @@ where
     }
 }
 
-// impl<V, F, Fut> AuthRepository for LambdaAuthRepository<V, F, Fut>
-// where
-//     F: FnOnce(
-//         Box<
-//             dyn FnMut(
-//                     LambdaEvent<CognitoEventUserPoolsPreSignup>,
-//                 ) -> Result<CognitoEventUserPoolsPreSignup, Error>
-//                 + Send,
-//         >,
-//     ) -> Fut,
-//     Fut: Future<Output = Result<(), Error>>,
-//     for<'a> V: 'a + AsRef<str>,
-// {
-//     pub fn new(lambda_executor: F, allowed_domains: V) -> Self {
-//         Self {
-//             lambda_executor,
-//             allowed_domains,
-//         }
-//     }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     pub async fn execute(self) -> Result<(), Error> {
-//         let domains = self.allowed_domains;
-//         // クロージャをBoxに包んでExecutorに渡す
-//         let handler = Box::new(move |event| function_handler(event, domains.as_ref()));
+    use lambda_runtime::Context;
+    use serde_json::json;
 
-//         (self.lambda_executor)(handler).await
-//     }
-// }
+    #[test]
+    fn 許可ドメインと一致する場合はtrue() {
+        assert!(is_allowed_domain("user@example.com", "example.com").unwrap());
+    }
 
-// /// Lambdaを利用したメッセージRepository実装。
-// #[derive(Clone)]
-// pub struct LambdaAuthRepository<T, V, F, Fut>
-// where
-//     T: serde::de::DeserializeOwned,
-//     F: FnMut(LambdaEvent<T>) -> Fut,
-//     Fut: Future<Output = Result<(), Error>>,
-//     for<'a> V: 'a + AsRef<str>,
-// {
-//     // ハンドラ関数を構造体のフィールドとして保持
-//     pub lambda_executor: F,
-//     allowed_domains: V,
-//     // ジェネリクス T, V を構造体で消費するためのマーカー
-//     _marker: std::marker::PhantomData<(T, V)>,
-// }
+    #[test]
+    fn 許可ドメインと一致しない場合はfalse() {
+        assert!(!is_allowed_domain("user@other.com", "example.com").unwrap());
+    }
 
-// impl<T, V, F, Fut> LambdaAuthRepository<T, V, F, Fut>
-// where
-//     T: serde::de::DeserializeOwned,
-//     F: FnMut(LambdaEvent<T>) -> Fut,
-//     Fut: Future<Output = Result<(), Error>>,
-//     for<'a> V: 'a + AsRef<str>,
-// {
-//     /// コンストラクタ
-//     pub fn new(lambda_executor: F, allowed_domains: V) -> Self {
-//         Self {
-//             lambda_executor,
-//             allowed_domains,
-//             _marker: std::marker::PhantomData,
-//         }
-//     }
+    #[test]
+    fn カンマ区切りの複数ドメインの先頭に一致する場合はtrue() {
+        assert!(is_allowed_domain("user@example.com", "example.com,other.com").unwrap());
+    }
 
-//     /// Lambdaの実行メソッド（self を受け取る）
-//     pub async fn execute(mut self) -> Result<(), Error> {
-//         (self.lambda_executor)(|event| async {
-//             function_handler(event, self.allowed_domains.as_ref())
-//         })
-//         .await
-//     }
-// }
+    #[test]
+    fn カンマ区切りの複数ドメインの末尾に一致する場合はtrue() {
+        assert!(is_allowed_domain("user@other.com", "example.com,other.com").unwrap());
+    }
 
-// #[async_trait]
-// impl<T, V, F, Fut> AuthRepository for LambdaAuthRepository<T, V, F, Fut>
-// where
-//     T: serde::de::DeserializeOwned,
-//     F: FnMut(LambdaEvent<T>) -> Fut + Send + Sync + Clone,
-//     Fut: Future<Output = Result<(), Error>>,
-//     for<'a> V: 'a + AsRef<str>,
-// {
-//     async fn pre_sign_up(
-//         &self,
-//         input: &PreSignUpInput,
-//     ) -> impl std::future::Future<Output = Result<PreSignUpOutput, DomainError>> + Send {
-//         let lambda_executor = self.lambda_executor.clone();
-//         let input_clone = input.clone();
+    #[test]
+    fn スペースを含む複数ドメインに一致する場合はtrue() {
+        assert!(is_allowed_domain("user@other.com", "example.com, other.com").unwrap());
+    }
 
-//         // async move {
-//         //     // Lambdaを呼び出す処理をここに実装する
-//         //     // 例: lambda_executor.invoke("PreSignUpFunction", input_clone).await
-//         //     // ここでは仮の成功レスポンスを返す
-//         //     Ok(PreSignUpOutput {
-//         //         is_success: true,
-//         //         message: "PreSignUp successful".to_string(),
-//         //     })
-//         // }
-//         lambda_executor(|event| async {
-//             function_handler(event, ALLOWED_EMAIL_DOMAINS.get().unwrap())
-//         })
-//         .await
-//     }
-// }
+    #[test]
+    fn 不正なメールアドレス形式の場合はエラー() {
+        assert!(is_allowed_domain("invalid-email", "example.com").is_err());
+    }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-// }
+    #[tokio::test]
+    async fn handlerは型付きイベントからemailを取得できる() {
+        let event: CognitoEventUserPoolsPreSignup = serde_json::from_value(json!({
+            "version": "1",
+            "triggerSource": "PreSignUp_SignUp",
+            "region": "ap-northeast-3",
+            "userPoolId": "ap-northeast-3_example",
+            "userName": "user@example.com",
+            "callerContext": {
+                "awsSdkVersion": "aws-sdk-js-3.0.0",
+                "clientId": "example-client-id"
+            },
+            "request": {
+                "userAttributes": {
+                    "email": "user@example.com"
+                },
+                "validationData": {},
+                "clientMetadata": {}
+            },
+            "response": {
+                "autoConfirmUser": false,
+                "autoVerifyEmail": false,
+                "autoVerifyPhone": false
+            }
+        }))
+        .unwrap();
+
+        let result = function_handler(LambdaEvent::new(event, Context::default()), "example.com");
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn handlerはemail属性が無い場合エラー() {
+        let event: CognitoEventUserPoolsPreSignup = serde_json::from_value(json!({
+            "version": "1",
+            "triggerSource": "PreSignUp_SignUp",
+            "region": "ap-northeast-3",
+            "userPoolId": "ap-northeast-3_example",
+            "userName": "user@example.com",
+            "callerContext": {
+                "awsSdkVersion": "aws-sdk-js-3.0.0",
+                "clientId": "example-client-id"
+            },
+            "request": {
+                "userAttributes": {},
+                "validationData": {},
+                "clientMetadata": {}
+            },
+            "response": {
+                "autoConfirmUser": false,
+                "autoVerifyEmail": false,
+                "autoVerifyPhone": false
+            }
+        }))
+        .unwrap();
+
+        let result = function_handler(LambdaEvent::new(event, Context::default()), "example.com");
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn handlerは許可しているドメインのemailで無い場合エラー() {
+        let event: CognitoEventUserPoolsPreSignup = serde_json::from_value(json!({
+            "version": "1",
+            "triggerSource": "PreSignUp_SignUp",
+            "region": "ap-northeast-3",
+            "userPoolId": "ap-northeast-3_example",
+            "userName": "user@example.com",
+            "callerContext": {
+                "awsSdkVersion": "aws-sdk-js-3.0.0",
+                "clientId": "example-client-id"
+            },
+            "request": {
+                "userAttributes": {
+                    "email": "user@notallowed.com"
+                },
+                "validationData": {},
+                "clientMetadata": {}
+            },
+            "response": {
+                "autoConfirmUser": false,
+                "autoVerifyEmail": false,
+                "autoVerifyPhone": false
+            }
+        }))
+        .unwrap();
+
+        let result = function_handler(LambdaEvent::new(event, Context::default()), "example.com");
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn 許可ドメインならtrueになる() {
+        assert!(is_allowed_domain("user@example.com", "example.com").unwrap());
+    }
+    #[test]
+    fn メール形式が不正ならエラーになる() {
+        assert!(is_allowed_domain("invalid-email", "example.com").is_err());
+    }
+}
