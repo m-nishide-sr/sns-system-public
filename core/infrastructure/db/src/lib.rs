@@ -1,6 +1,6 @@
-//! インフラ層の公開API。
+//! インフラ層(DB)の公開API。
 //!
-//! Domainで定義したRepository traitを、SeaORMとDBスキーマに接続して実装する。
+//! DB接続(SeaORMのDatabaseConnection)生成など、DB周りの共通機能を提供する。
 
 pub mod db;
 pub mod db_dsql;

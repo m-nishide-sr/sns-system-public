@@ -21,7 +21,7 @@ Resources:
     Properties:
       FunctionName: !Sub sns-${SubSystem}-${Stage}-api
       CodeUri: ./lambda
-      Handler: bootstrap
+      Handler: sns-system-api-lambda-bootstrap
       Runtime: provided.al2023
       Architectures:
         - arm64
@@ -44,7 +44,7 @@ Resources:
       # export_openapiとbootstrapの2つの[[bin]]があるのでBinaryを指定しなければ
       # どちらが対象のバイナリかをSAMが判断できません。
       BuildProperties:
-        Binary: bootstrap
+        Binary: sns-system-api-lambda-bootstrap
 
   # HTTP API (API Gateway v2) を SAM で定義しています。
   #

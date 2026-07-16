@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: SNSシステム 認証基盤
 
@@ -88,7 +88,7 @@ Resources:
       Timeout: 30
       MemorySize: 128
       Runtime: provided.al2023
-      Handler: bootstrap
+      Handler: sns-system-cognito-presignup-bootstrap
       CodeUri: ./PreSignUpFunction
       Environment:
         Variables:
@@ -96,6 +96,8 @@ Resources:
           ALLOWED_EMAIL_DOMAINS: !Ref AllowDomain
     Metadata:
       BuildMethod: rust-cargolambda
+      BuildProperties:
+        Binary: sns-system-cognito-presignup-bootstrap
 
   # CognitoユーザープールからPreSignUpLambdaを呼び出すための権限
   PreSignUpFunctionPermission:

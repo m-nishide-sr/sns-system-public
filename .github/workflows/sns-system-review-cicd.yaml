@@ -118,29 +118,16 @@ jobs:
         working-directory: api/lambda
         run: cargo tarpaulin --out Html -- --include-ignored
 
-      - name: Rustドキュメントの生成(API)
-        working-directory: api/lambda
+      - name: Rustドキュメントの生成
         run: cargo doc --no-deps
 
       - name: カバレッジレポートの生成(PreSignUpFunction)
         working-directory: auth/PreSignUpFunction
         run: cargo tarpaulin --out Html -- --include-ignored
 
-      - name: Rustドキュメントの生成(PreSignUpFunction)
-        working-directory: auth/PreSignUpFunction
-        run: cargo doc --no-deps
-
-      - name: Rustドキュメントの生成(Sea Orm Entities)
-        working-directory: db/sea_orm_entities
-        run: cargo doc --no-deps
-
       - name: カバレッジレポートの生成(core)
         working-directory: core
         run: cargo tarpaulin --out Html -- --include-ignored
-
-      - name: Rustドキュメントの生成(core)
-        working-directory: core
-        run: cargo doc --no-deps
 
       - name: OpenAPI仕様の生成
         working-directory: api/lambda
@@ -171,13 +158,8 @@ jobs:
         run: |
           mkdir -p review-output/coverage review-output/rust-doc review-output/storybook review-output/typedoc
           cp -r docs/_book/. review-output/
-          cp api/lambda/tarpaulin-report.html review-output/coverage/api_lambda-tarpaulin-report.html
-          cp core/tarpaulin-report.html review-output/coverage/core-tarpaulin-report.html
-          cp auth/PreSignUpFunction/tarpaulin-report.html review-output/coverage/auth_PreSignUpFunction-tarpaulin-report.html
-          cp -r api/lambda/target/doc/. review-output/rust-doc/sns_system_api_lambda/
-          cp -r auth/PreSignUpFunction/target/doc/. review-output/rust-doc/sns_system_auth_pre_signup_function/
-          cp -r db/sea_orm_entities/target/doc/. review-output/rust-doc/sns_system_db_sea_orm_entities/
-          cp -r core/target/doc/. review-output/rust-doc/sns_system_core/
+          cp tarpaulin-report.html review-output/coverage/tarpaulin-report.html
+          cp -r target/doc/. review-output/rust-doc/
           cp api/openapi.yaml review-output/
           cp -r frontend/storybook-static/. review-output/storybook/
           cp -r frontend/typedoc/. review-output/typedoc/
