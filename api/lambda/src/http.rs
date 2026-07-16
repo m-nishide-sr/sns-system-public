@@ -5,7 +5,7 @@ use aws_lambda_events::{
 };
 use chrono::{DateTime, Utc};
 use core_common::{CoreError, CoreResult, SystemClock};
-use core_infrastructure::SeaOrmMessageRepository;
+use core_infrastructure_sea_orm::SeaOrmMessageRepository;
 use core_usecase::{
     GetTimelineInput, GetTimelineUseCase, PostMessageInput, PostMessageUseCase, TimelineItem,
 };

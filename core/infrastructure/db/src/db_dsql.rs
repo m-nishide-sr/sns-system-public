@@ -128,6 +128,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn エラー時に接続できないこと() {
         let connection_info = AuroraDSQLConnectionInfo {
             role: "invalid_role",
