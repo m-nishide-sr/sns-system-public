@@ -121,14 +121,6 @@ jobs:
       - name: Rustドキュメントの生成
         run: cargo doc --no-deps
 
-      - name: カバレッジレポートの生成(PreSignUpFunction)
-        working-directory: auth/PreSignUpFunction
-        run: cargo tarpaulin --out Html -- --include-ignored
-
-      - name: カバレッジレポートの生成(core)
-        working-directory: core
-        run: cargo tarpaulin --out Html -- --include-ignored
-
       - name: OpenAPI仕様の生成
         working-directory: api/lambda
         run: cargo run --bin export_openapi
