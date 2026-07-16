@@ -110,12 +110,6 @@ jobs:
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            ./api/lambda -> target
-            ./core -> target
-            ./db/sea_orm_entities -> target
-            ./auth/PreSignUpFunction -> target
 
       - name: cargo-tarpaulinのインストール
         run: cargo install cargo-tarpaulin --locked

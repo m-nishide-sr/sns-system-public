@@ -15,20 +15,16 @@ path = "src/bin/export_openapi.rs"
 name = "sns_system_api_lambda"
 path = "src/lib.rs"
 
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = 3
-panic = "abort"
-strip = true
-
 [dependencies]
+anyhow.workspace = true
 aws_lambda_events = "1.2.0"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 core_common = { path = "../../core/common" }
-core_infrastructure = { path = "../../core/infrastructure" }
+core_infrastructure_db = { path = "../../core/infrastructure/db" }
+core_infrastructure_sea_orm = { path = "../../core/infrastructure/sea_orm" }
 core_usecase = { path = "../../core/usecase" }
+core_infrastructure_lambda = { path = "../../core/infrastructure/lambda" }
 lambda_http = "0.14"
 lambda_runtime = "0.13"
 sea-orm = { version = "1", features = [

@@ -5,7 +5,8 @@
 
 use std::env;
 
-use lambda_runtime::{Error, run, service_fn};
+use core_infrastructure_lambda::lambda_executor;
+use lambda_runtime::Error;
 use sns_system_api_lambda::function_handler;
 
 #[tokio::main(flavor = "current_thread")]
@@ -22,7 +23,7 @@ async fn main() -> Result<(), Error> {
     let dsql_endpoint = env::var("DSQL_ENDPOINT")?;
     let dsql_region = env::var("AWS_REGION")?;
 
-    use core_infrastructure::{AuroraDSQLConnectionInfo, DBType, create_db};
+    use core_infrastructure_db::{AuroraDSQLConnectionInfo, DBType, create_db};
     let db = create_db(DBType::AuroraDSQL(AuroraDSQLConnectionInfo {
         role: "lambda",
         endpoint: &dsql_endpoint,
@@ -35,9 +36,9 @@ async fn main() -> Result<(), Error> {
 
     // INVOKEフェーズここから
     // INVOKEフェーズではvCPUが1/12コア(約0.08コア)しか割り当てられないため、シングルスレッドで処理する。
-    run(service_fn(|event| {
+    lambda_executor(|event| {
         // INVOKEフェーズでは、Cold Startで作成した共有済みコネクションを使ってHTTPハンドラを実行する。
         function_handler(&db, event)
-    }))
+    })
     .await
 }
