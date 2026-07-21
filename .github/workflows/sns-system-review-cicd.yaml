@@ -115,7 +115,6 @@ jobs:
         run: cargo install cargo-tarpaulin --locked
 
       - name: カバレッジレポートの生成
-        working-directory: api/lambda
         run: cargo tarpaulin --out Html -- --include-ignored
 
       - name: Rustドキュメントの生成
