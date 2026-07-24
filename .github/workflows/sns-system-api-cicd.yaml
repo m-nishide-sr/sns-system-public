@@ -48,12 +48,6 @@ jobs:
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            ./api/lambda -> target
-            ./core -> target
-            ./db/sea_orm_entities -> target
-            ./auth/PreSignUpFunction -> target
 
       - name: cargo fmt -- --check の実行
         working-directory: api/lambda
@@ -94,12 +88,6 @@ jobs:
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            ./api/lambda -> target
-            ./core -> target
-            ./db/sea_orm_entities -> target
-            ./auth/PreSignUpFunction -> target
 
       - name: cargo-lambdaのインストール
         run: pip install cargo-lambda

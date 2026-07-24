@@ -1,0 +1,19 @@
+[package]
+name = "core_infrastructure_lambda"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "core_infrastructure_lambda"
+path = "src/lib.rs"
+
+[dependencies]
+aws_lambda_events = { version = "1.2.0", features = ["cognito"] }
+core_domain = { path = "../../domain" }
+lambda_runtime = "0.13"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+http = "1"
+tokio = { version = "1", features = ["macros", "rt"] }
+serde_json = "1.0.150"

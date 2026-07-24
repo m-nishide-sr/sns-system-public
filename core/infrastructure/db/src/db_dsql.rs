@@ -2,7 +2,7 @@
 //!
 //! このモジュールは、Amazon Aurora DSQL への接続管理を担当します。
 //! [`aurora_dsql_sqlx_connector`] クレートを使用して IAM 認証付きの接続プールを構築し、
-//! [`sea_orm`] の [`DatabaseConnection`] として提供します。
+//! [`sea_orm`] の [`PgPool`] として提供します。
 //!
 //! ## Aurora DSQL について
 //!
@@ -71,7 +71,7 @@ where
 /// Aurora DSQL への SeaORM データベース接続を作成する
 ///
 /// 指定されたロール・エンドポイント・リージョンを使用して Aurora DSQL への接続プールを構築し、
-/// [`sea_orm::DatabaseConnection`] として返します。
+/// [`sea_orm::sqlx::PgPool`] として返します。
 ///
 /// 接続確立には IAM 認証が使用されます。[`aurora_dsql_sqlx_connector`] が AWS STS と通信して
 /// 認証トークンを自動取得します。そのため、Lambda 関数の実行ロールに
@@ -85,7 +85,7 @@ where
 ///
 /// # Returns
 ///
-/// * `Ok(DatabaseConnection)` - 正常に接続が確立された場合
+/// * `Ok(PgPool)` - 正常に接続が確立された場合
 /// * `Err(Error)` - 接続に失敗した場合（IAM権限不足、ネットワークエラー等）
 ///
 /// # Errors
@@ -128,6 +128,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn エラー時に接続できないこと() {
         let connection_info = AuroraDSQLConnectionInfo {
             role: "invalid_role",

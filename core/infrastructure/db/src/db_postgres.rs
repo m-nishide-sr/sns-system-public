@@ -57,19 +57,6 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
-    async fn デフォルトでローカル_postgre_sqlへ接続できること() {
-        assert!(
-            create_db_postgres(&PostgreSQLConnectionInfo {
-                role: "lambda",
-                password: "lambda",
-            })
-            .await
-            .is_ok()
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn 明示的にローカル_postgre_sqlへ接続できること() {
         assert!(
             create_db_postgres(&PostgreSQLConnectionInfo {
@@ -81,6 +68,7 @@ mod tests {
         );
     }
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "ローカルのDBが必要なためデフォルトでは実行しない"]
     async fn ローカル_postgre_sqlへ接続できない時にエラーになること() {
         assert!(
             create_db_postgres(&PostgreSQLConnectionInfo {

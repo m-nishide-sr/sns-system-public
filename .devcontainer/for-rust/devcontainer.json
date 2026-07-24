@@ -31,12 +31,7 @@
             "icon": "terminal-bash"
           }
         },
-        "rust-analyzer.linkedProjects": [
-          "api/lambda/Cargo.toml",
-          "db/sea_orm_entities/Cargo.toml",
-          "auth/PreSignUpFunction/Cargo.toml",
-          "core/Cargo.toml"
-        ],
+        "rust-analyzer.linkedProjects": ["Cargo.toml"],
         "editor.wordWrap": "on",
         "editor.tabSize": 2,
         "editor.insertSpaces": true,

@@ -37,19 +37,11 @@ jobs:
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            ./api/lambda -> target
-            ./core -> target
-            ./db/sea_orm_entities -> target
-            ./auth/PreSignUpFunction -> target
 
       - name: cargo fmt -- --check の実行
-        working-directory: core
         run: cargo fmt -- --check
 
       - name: cargo clippy の実行
-        working-directory: core
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: PostgreSQLの起動
@@ -94,29 +86,4 @@ jobs:
             -DAWS_ACCOUNT_ID=123456789012
 
       - name: cargo test の実行
-        working-directory: core
-        run: cargo test --all-features -- --include-ignored
-
-      - name: cargo fmt -- --check の実行
-        working-directory: api/lambda
-        run: cargo fmt -- --check
-
-      - name: cargo clippy の実行
-        working-directory: api/lambda
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: cargo test の実行
-        working-directory: api/lambda
-        run: cargo test --all-features -- --include-ignored
-
-      - name: cargo fmt -- --check の実行
-        working-directory: db/sea_orm_entities
-        run: cargo fmt -- --check
-
-      - name: cargo clippy の実行
-        working-directory: db/sea_orm_entities
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: cargo test の実行
-        working-directory: db/sea_orm_entities
         run: cargo test --all-features -- --include-ignored
